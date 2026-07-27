@@ -33,3 +33,9 @@ class DailyBar(BaseModel):
             raise ValueError("close must be between low and high")
 
         return self
+class MacdResult(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    dif: float
+    dea: float
+    histogram: float

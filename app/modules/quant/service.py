@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from app.modules.quant.schemas import DailyBar
+from app.modules.quant.schemas import DailyBar, MacdResult
 
 
 def calculate_moving_average(
@@ -55,3 +55,43 @@ def calculate_rsi(
     relative_strength = average_gain / average_loss
 
     return 100 - (100 / (1 + relative_strength))
+def calculate_macd(
+    bars: Sequence[DailyBar],
+    fast_period: int = 12,
+    slow_period: int = 26,
+    signal_period: int = 9,
+) -> MacdResult | None:
+    if fast_period <= 0 or slow_period <= 0 or signal_period <= 0:
+        raise ValueError("MACD periods must be greater than zero")
+
+    if fast_period >= slow_period:
+        raise ValueError("fast period must be less than slow period")
+
+    minimum_bar_count = slow_period + signal_period - 1
+
+    if len(bars) < minimum_bar_count:
+        return None
+
+    fast_alpha = 2 / (fast_period + 1)
+    slow_alpha = 2 / (slow_period + 1)
+    signal_alpha = 2 / (signal_period + 1)
+
+    fast_ema = bars[0].close
+    slow_ema = bars[0].close
+    dif = fast_ema - slow_ema
+    dea = dif
+
+    for bar in bars[1:]:
+        close = bar.close
+
+        fast_ema = close * fast_alpha + fast_ema * (1 - fast_alpha)
+        slow_ema = close * slow_alpha + slow_ema * (1 - slow_alpha)
+
+        dif = fast_ema - slow_ema
+        dea = dif * signal_alpha + dea * (1 - signal_alpha)
+
+    return MacdResult(
+        dif=dif,
+        dea=dea,
+        histogram=2 * (dif - dea),
+    )
