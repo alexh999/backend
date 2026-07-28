@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,6 +17,11 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173,"
         "http://127.0.0.1:8080"
     )
+    siliconflow_api_key: SecretStr | None = None
+    siliconflow_base_url: str = "https://api.siliconflow.com/v1"
+    siliconflow_model: str = Field(min_length=1)
+    siliconflow_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
+    siliconflow_max_tokens: int = Field(default=512, ge=1, le=4096)
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -27,6 +33,14 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @field_validator("siliconflow_model")
+    @classmethod
+    def strip_siliconflow_model(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("SILICONFLOW_MODEL must not be blank")
+        return value
 
 
 @lru_cache
