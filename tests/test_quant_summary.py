@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 import pytest
 
 from app.modules.quant.schemas import (
@@ -11,6 +12,7 @@ from app.modules.quant.schemas import (
     EvidenceState,
     RiskFlag,
     TechnicalSummary,
+    DailyBar,
 )
 from app.modules.quant.service import (
     classify_macd,
@@ -20,6 +22,7 @@ from app.modules.quant.service import (
     classify_evidence,
     collect_risk_flags,
     build_technical_summary,
+    analyze_technical_summary,
 )
 
 
@@ -320,6 +323,54 @@ def test_build_technical_summary_with_missing_data() -> None:
         macd=None,
         volume=None,
     )
+
+    assert result == TechnicalSummary(
+        trend=TrendState.INSUFFICIENT_DATA,
+        rsi=RsiState.INSUFFICIENT_DATA,
+        macd=MacdState.INSUFFICIENT_DATA,
+        volume=VolumeState.INSUFFICIENT_DATA,
+        evidence=EvidenceState.INSUFFICIENT_DATA,
+        risk_flags=(RiskFlag.INSUFFICIENT_DATA,),
+    )
+
+
+def make_rising_daily_bars(count: int) -> list[DailyBar]:
+    bars: list[DailyBar] = []
+
+    for index in range(count):
+        close = 100.0 + index
+        volume = 1200 if index == count - 1 else 1000
+
+        bars.append(
+            DailyBar(
+                trade_date=date(2026, 1, 1) + timedelta(days=index),
+                open=close,
+                high=close + 1,
+                low=close - 1,
+                close=close,
+                previous_close=close - 1 if index > 0 else None,
+                volume=volume,
+            )
+        )
+
+    return bars
+
+
+def test_analyze_technical_summary_from_daily_bars() -> None:
+    result = analyze_technical_summary(make_rising_daily_bars(40))
+
+    assert result == TechnicalSummary(
+        trend=TrendState.UPWARD,
+        rsi=RsiState.HIGH,
+        macd=MacdState.POSITIVE,
+        volume=VolumeState.CONFIRMING,
+        evidence=EvidenceState.CONSISTENT_POSITIVE,
+        risk_flags=(RiskFlag.RSI_HIGH,),
+    )
+
+
+def test_analyze_technical_summary_with_empty_bars() -> None:
+    result = analyze_technical_summary([])
 
     assert result == TechnicalSummary(
         trend=TrendState.INSUFFICIENT_DATA,

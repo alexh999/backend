@@ -323,3 +323,29 @@ def build_technical_summary(
         evidence=evidence_state,
         risk_flags=risk_flags,
     )
+
+
+def analyze_technical_summary(
+    bars: Sequence[DailyBar],
+) -> TechnicalSummary:
+    latest_close = bars[-1].close if bars else None
+
+    ma5 = calculate_moving_average(bars, period=5)
+    ma20 = calculate_moving_average(bars, period=20)
+    rsi = calculate_rsi(bars, period=14)
+    macd = calculate_macd(
+        bars,
+        fast_period=12,
+        slow_period=26,
+        signal_period=9,
+    )
+    volume = analyze_volume(bars, baseline_period=5)
+
+    return build_technical_summary(
+        latest_close=latest_close,
+        ma5=ma5,
+        ma20=ma20,
+        rsi=rsi,
+        macd=macd,
+        volume=volume,
+    )
