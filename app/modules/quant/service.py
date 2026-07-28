@@ -1,15 +1,16 @@
 from collections.abc import Sequence
+from math import isfinite
 
 from app.modules.quant.schemas import (
     DailyBar,
     MacdResult,
-    MacdState,
+    MomentumState,
     PriceDirection,
-    RsiState,
+    StrengthState,
     VolumeAnalysisResult,
     TrendState,
-    VolumeState,
-    EvidenceState,
+    ParticipationState,
+    EvidenceConsistency,
     RiskFlag,
     TechnicalSummary,
 )
@@ -145,50 +146,76 @@ def analyze_volume(
     )
 
 
-def classify_rsi(rsi: float | None) -> RsiState:
+def classify_rsi(rsi: float | None) -> StrengthState:
     if rsi is None:
-        return RsiState.INSUFFICIENT_DATA
+        return StrengthState.INSUFFICIENT_DATA
 
     if rsi >= 70:
-        return RsiState.HIGH
+        return StrengthState.HIGH
 
     if rsi > 55:
-        return RsiState.RELATIVELY_STRONG
+        return StrengthState.RELATIVELY_STRONG
 
     if rsi >= 45:
-        return RsiState.BALANCED
+        return StrengthState.BALANCED
 
     if rsi > 30:
-        return RsiState.RELATIVELY_WEAK
+        return StrengthState.RELATIVELY_WEAK
 
-    return RsiState.LOW
+    return StrengthState.LOW
 
 
-def classify_macd(macd: MacdResult | None) -> MacdState:
+def classify_macd(macd: MacdResult | None) -> MomentumState:
     if macd is None:
-        return MacdState.INSUFFICIENT_DATA
+        return MomentumState.INSUFFICIENT_DATA
 
     if macd.dif > macd.dea and macd.histogram > 0:
-        return MacdState.POSITIVE
+        return MomentumState.POSITIVE
 
     if macd.dif < macd.dea and macd.histogram < 0:
-        return MacdState.NEGATIVE
+        return MomentumState.NEGATIVE
 
-    return MacdState.MIXED
+    return MomentumState.MIXED
 
 
 def classify_trend(
     latest_close: float | None,
     ma5: float | None,
+    ma10: float | None,
     ma20: float | None,
+    earlier_ma20: float | None,
 ) -> TrendState:
-    if latest_close is None or ma5 is None or ma20 is None:
+    if (
+        latest_close is None
+        or ma5 is None
+        or ma10 is None
+        or ma20 is None
+        or earlier_ma20 is None
+    ):
         return TrendState.INSUFFICIENT_DATA
 
-    if latest_close > ma5 > ma20:
+    if not all(
+        isfinite(value)
+        for value in (
+            latest_close,
+            ma5,
+            ma10,
+            ma20,
+            earlier_ma20,
+        )
+    ):
+        return TrendState.INSUFFICIENT_DATA
+
+    if latest_close <= 0 or ma20 <= 0 or earlier_ma20 <= 0:
+        return TrendState.INSUFFICIENT_DATA
+
+    ma20_slope = (ma20 - earlier_ma20) / earlier_ma20
+    slope_threshold = 0.005
+
+    if latest_close >= ma20 and ma5 >= ma10 and ma20_slope >= slope_threshold:
         return TrendState.UPWARD
 
-    if latest_close < ma5 < ma20:
+    if latest_close <= ma20 and ma5 <= ma10 and ma20_slope <= -slope_threshold:
         return TrendState.DOWNWARD
 
     return TrendState.MIXED
@@ -197,71 +224,62 @@ def classify_trend(
 def classify_volume(
     volume: VolumeAnalysisResult | None,
     trend: TrendState,
-) -> VolumeState:
-    if volume is None:
-        return VolumeState.INSUFFICIENT_DATA
+) -> ParticipationState:
+    if volume is None or trend == TrendState.INSUFFICIENT_DATA:
+        return ParticipationState.INSUFFICIENT_DATA
+
+    if not isfinite(volume.volume_ratio) or volume.volume_ratio < 0:
+        return ParticipationState.INSUFFICIENT_DATA
 
     if volume.volume_ratio < 0.9:
-        return VolumeState.LOW
+        return ParticipationState.LOW
 
-    if volume.volume_ratio <= 1.1:
-        return VolumeState.INCONCLUSIVE
+    if (
+        volume.volume_ratio < 1.1
+        or volume.price_direction == PriceDirection.FLAT
+        or trend == TrendState.MIXED
+    ):
+        return ParticipationState.INCONCLUSIVE
 
-    if trend == TrendState.UPWARD:
-        if volume.price_direction == PriceDirection.UP:
-            return VolumeState.CONFIRMING
-        if volume.price_direction == PriceDirection.DOWN:
-            return VolumeState.CONTRADICTING
+    confirms_upward_trend = (
+        trend == TrendState.UPWARD and volume.price_direction == PriceDirection.UP
+    )
+    confirms_downward_trend = (
+        trend == TrendState.DOWNWARD and volume.price_direction == PriceDirection.DOWN
+    )
 
-    if trend == TrendState.DOWNWARD:
-        if volume.price_direction == PriceDirection.DOWN:
-            return VolumeState.CONFIRMING
-        if volume.price_direction == PriceDirection.UP:
-            return VolumeState.CONTRADICTING
+    if confirms_upward_trend or confirms_downward_trend:
+        return ParticipationState.CONFIRMING
 
-    return VolumeState.INCONCLUSIVE
+    return ParticipationState.CONTRADICTING
 
 
 def classify_evidence(
     trend: TrendState,
-    rsi: RsiState,
-    macd: MacdState,
-    volume: VolumeState,
-) -> EvidenceState:
-    if (
-        trend == TrendState.INSUFFICIENT_DATA
-        or rsi == RsiState.INSUFFICIENT_DATA
-        or macd == MacdState.INSUFFICIENT_DATA
-    ):
-        return EvidenceState.INSUFFICIENT_DATA
+    macd: MomentumState,
+    volume: ParticipationState,
+) -> EvidenceConsistency:
+    if trend == TrendState.INSUFFICIENT_DATA or macd == MomentumState.INSUFFICIENT_DATA:
+        return EvidenceConsistency.UNAVAILABLE
 
-    if volume == VolumeState.CONTRADICTING:
-        return EvidenceState.MIXED
+    direction_conflicts = (
+        trend == TrendState.UPWARD and macd == MomentumState.NEGATIVE
+    ) or (trend == TrendState.DOWNWARD and macd == MomentumState.POSITIVE)
 
-    positive_rsi_states = {
-        RsiState.HIGH,
-        RsiState.RELATIVELY_STRONG,
-    }
-    negative_rsi_states = {
-        RsiState.LOW,
-        RsiState.RELATIVELY_WEAK,
-    }
+    if direction_conflicts or volume == ParticipationState.CONTRADICTING:
+        return EvidenceConsistency.DIVERGENT
 
-    if (
-        trend == TrendState.UPWARD
-        and rsi in positive_rsi_states
-        and macd == MacdState.POSITIVE
-    ):
-        return EvidenceState.CONSISTENT_POSITIVE
+    direction_aligns = (
+        trend == TrendState.UPWARD and macd == MomentumState.POSITIVE
+    ) or (trend == TrendState.DOWNWARD and macd == MomentumState.NEGATIVE)
 
-    if (
-        trend == TrendState.DOWNWARD
-        and rsi in negative_rsi_states
-        and macd == MacdState.NEGATIVE
-    ):
-        return EvidenceState.CONSISTENT_NEGATIVE
+    if direction_aligns and volume == ParticipationState.CONFIRMING:
+        return EvidenceConsistency.HIGH
 
-    return EvidenceState.MIXED
+    if direction_aligns:
+        return EvidenceConsistency.MODERATE
+
+    return EvidenceConsistency.DIVERGENT
 
 
 def collect_risk_flags(
@@ -269,22 +287,34 @@ def collect_risk_flags(
     ma20: float | None,
     rsi: float | None,
 ) -> tuple[RiskFlag, ...]:
-    if latest_close is None or ma20 is None or rsi is None:
-        return (RiskFlag.INSUFFICIENT_DATA,)
-
     risk_flags: list[RiskFlag] = []
 
-    if rsi >= 70:
+    if rsi is None or not isfinite(rsi) or rsi < 0 or rsi > 100:
+        risk_flags.append(RiskFlag.DATA_INSUFFICIENT)
+    elif rsi >= 70:
         risk_flags.append(RiskFlag.RSI_HIGH)
     elif rsi <= 30:
         risk_flags.append(RiskFlag.RSI_LOW)
 
-    price_deviation = (latest_close - ma20) / ma20
+    price_data_invalid = (
+        latest_close is None
+        or ma20 is None
+        or not isfinite(latest_close)
+        or not isfinite(ma20)
+        or latest_close <= 0
+        or ma20 <= 0
+    )
+
+    if price_data_invalid:
+        if RiskFlag.DATA_INSUFFICIENT not in risk_flags:
+            risk_flags.append(RiskFlag.DATA_INSUFFICIENT)
+
+        return tuple(risk_flags)
+
+    price_deviation = abs(latest_close - ma20) / ma20
 
     if price_deviation >= 0.1:
-        risk_flags.append(RiskFlag.PRICE_FAR_ABOVE_MA20)
-    elif price_deviation <= -0.1:
-        risk_flags.append(RiskFlag.PRICE_FAR_BELOW_MA20)
+        risk_flags.append(RiskFlag.PRICE_EXTENDED)
 
     return tuple(risk_flags)
 
@@ -292,19 +322,26 @@ def collect_risk_flags(
 def build_technical_summary(
     latest_close: float | None,
     ma5: float | None,
+    ma10: float | None,
     ma20: float | None,
+    earlier_ma20: float | None,
     rsi: float | None,
     macd: MacdResult | None,
     volume: VolumeAnalysisResult | None,
 ) -> TechnicalSummary:
-    trend_state = classify_trend(latest_close, ma5, ma20)
+    trend_state = classify_trend(
+        latest_close,
+        ma5,
+        ma10,
+        ma20,
+        earlier_ma20,
+    )
     rsi_state = classify_rsi(rsi)
     macd_state = classify_macd(macd)
     volume_state = classify_volume(volume, trend_state)
 
     evidence_state = classify_evidence(
         trend=trend_state,
-        rsi=rsi_state,
         macd=macd_state,
         volume=volume_state,
     )
@@ -317,10 +354,10 @@ def build_technical_summary(
 
     return TechnicalSummary(
         trend=trend_state,
-        rsi=rsi_state,
-        macd=macd_state,
-        volume=volume_state,
-        evidence=evidence_state,
+        momentum=macd_state,
+        strength=rsi_state,
+        participation=volume_state,
+        consistency=evidence_state,
         risk_flags=risk_flags,
     )
 
@@ -328,10 +365,19 @@ def build_technical_summary(
 def analyze_technical_summary(
     bars: Sequence[DailyBar],
 ) -> TechnicalSummary:
+    slope_lookback = 5
     latest_close = bars[-1].close if bars else None
 
     ma5 = calculate_moving_average(bars, period=5)
+    ma10 = calculate_moving_average(bars, period=10)
     ma20 = calculate_moving_average(bars, period=20)
+
+    earlier_bars = bars[:-slope_lookback]
+    earlier_ma20 = calculate_moving_average(
+        earlier_bars,
+        period=20,
+    )
+
     rsi = calculate_rsi(bars, period=14)
     macd = calculate_macd(
         bars,
@@ -344,7 +390,9 @@ def analyze_technical_summary(
     return build_technical_summary(
         latest_close=latest_close,
         ma5=ma5,
+        ma10=ma10,
         ma20=ma20,
+        earlier_ma20=earlier_ma20,
         rsi=rsi,
         macd=macd,
         volume=volume,

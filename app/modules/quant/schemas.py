@@ -65,7 +65,7 @@ class TrendState(StrEnum):
     INSUFFICIENT_DATA = "insufficient_data"
 
 
-class RsiState(StrEnum):
+class StrengthState(StrEnum):
     HIGH = "high"
     RELATIVELY_STRONG = "relatively_strong"
     BALANCED = "balanced"
@@ -74,14 +74,14 @@ class RsiState(StrEnum):
     INSUFFICIENT_DATA = "insufficient_data"
 
 
-class MacdState(StrEnum):
+class MomentumState(StrEnum):
     POSITIVE = "positive"
     NEGATIVE = "negative"
     MIXED = "mixed"
     INSUFFICIENT_DATA = "insufficient_data"
 
 
-class VolumeState(StrEnum):
+class ParticipationState(StrEnum):
     LOW = "low"
     INCONCLUSIVE = "inconclusive"
     CONFIRMING = "confirming"
@@ -89,27 +89,26 @@ class VolumeState(StrEnum):
     INSUFFICIENT_DATA = "insufficient_data"
 
 
-class EvidenceState(StrEnum):
-    CONSISTENT_POSITIVE = "consistent_positive"
-    CONSISTENT_NEGATIVE = "consistent_negative"
-    MIXED = "mixed"
-    INSUFFICIENT_DATA = "insufficient_data"
+class EvidenceConsistency(StrEnum):
+    HIGH = "high"
+    MODERATE = "moderate"
+    DIVERGENT = "divergent"
+    UNAVAILABLE = "unavailable"
 
 
 class RiskFlag(StrEnum):
     RSI_HIGH = "rsi_high"
     RSI_LOW = "rsi_low"
-    PRICE_FAR_ABOVE_MA20 = "price_far_above_ma20"
-    PRICE_FAR_BELOW_MA20 = "price_far_below_ma20"
-    INSUFFICIENT_DATA = "insufficient_data"
+    PRICE_EXTENDED = "price_extended"
+    DATA_INSUFFICIENT = "data_insufficient"
 
 
 class TechnicalSummary(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     trend: TrendState
-    rsi: RsiState
-    macd: MacdState
-    volume: VolumeState
-    evidence: EvidenceState
+    momentum: MomentumState
+    strength: StrengthState
+    participation: ParticipationState
+    consistency: EvidenceConsistency
     risk_flags: tuple[RiskFlag, ...] = ()
