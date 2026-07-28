@@ -1,0 +1,440 @@
+Metadata-Version: 2.4
+Name: panda_data
+Version: 0.0.12
+Summary: PandaAI DataQuant
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: numpy<2.0,>=1.22
+Requires-Dist: python-snappy>=0.7.3
+Requires-Dist: python-dotenv>=1.0.0
+Requires-Dist: PyYAML>=6.0
+Requires-Dist: zstandard>=0.22.0
+Requires-Dist: duckdb
+Requires-Dist: pyarrow
+Requires-Dist: websockets>=13.0
+Requires-Dist: requests
+Provides-Extra: dev
+Requires-Dist: pytest>=8.3.5; extra == "dev"
+Requires-Dist: pytest-asyncio; extra == "dev"
+Requires-Dist: httpx; extra == "dev"
+Requires-Dist: jupyterlab>=3.5.0; extra == "dev"
+
+# panda_data Python SDK 使用文档
+
+> **项目状态**: 🟢 生产环境  
+> **版本**: v0.1.0  
+> **Python 版本**: >= 3.12  
+> **最后更新**: 2024-XX-XX
+
+---
+
+## 📋 项目概述
+
+`panda_data` 是公司内部金融数据服务的 Python SDK，提供统一的 Python API 接口访问各类金融数据，所有接口返回 `pandas.DataFrame` 格式，便于数据分析和处理。
+
+### 核心特性
+
+- ✅ 统一返回 `pandas.DataFrame` 格式，无需数据转换
+- ✅ 支持股票、基金、指数、行业、概念、财务、期货等多种数据类型
+- ✅ 完善的错误处理和自动重试机制
+- ✅ 支持代码配置和环境变量配置
+- ✅ 支持代理、SSL 验证、Gzip 压缩等企业级特性
+
+---
+
+## 📑 快速导航
+
+- [快速开始](#快速开始)
+- [配置说明](#配置说明)
+- [API 接口](#api-接口)
+- [使用示例](#使用示例)
+- [常见问题](#常见问题)
+- [技术支持](#技术支持)
+
+---
+
+## 🚀 快速开始
+
+### 安装
+
+```bash
+pip install panda_data
+```
+
+### 依赖要求
+
+| 依赖包 | 版本要求 |
+|--------|---------|
+| Python | >= 3.12 |
+| pandas | >= 2.0.0 |
+| numpy | >= 1.22, < 2.0 |
+
+### 基本使用
+
+```python
+import panda_data
+
+# 初始化连接
+panda_data.init(
+    username="your_username",
+    password="your_password",
+    base_url="http://java-service-host:8080",
+)
+
+# 获取数据
+df = panda_data.get_market_data(
+    symbol=["000001.SZ"],
+    start_date="2024-01-01",
+    end_date="2024-01-31"
+)
+print(df.head())
+```
+
+### Token 初始化（推荐）
+
+使用 Token 方式可以避免在代码中硬编码密码，更安全：
+
+```python
+import panda_data
+
+# 使用 token 文件初始化
+panda_data.init_token()
+
+# 调用接口
+df = panda_data.get_abnormal(symbol=["000001.SZ"])
+```
+
+---
+
+## ⚙️ 配置说明
+
+### 代码配置
+
+在 `init()` 函数中传入配置参数：
+
+```python
+panda_data.init(
+    username="user",
+    password="pass",
+    base_url="http://service.example.com:8080",
+    timeout=60.0,           # 请求超时时间（秒）
+    max_retries=5,          # 最大重试次数
+    verify_ssl=True,        # 是否验证 SSL 证书
+    use_gzip=True,         # 是否使用 Gzip 压缩
+)
+```
+
+### 环境变量配置
+
+支持通过环境变量配置，**环境变量优先级高于代码配置**：
+
+| 环境变量 | 说明 | 默认值 |
+|---------|------|--------|
+| `HTTP_SERVICE_BASE_URL` | 服务基础 URL | `http://localhost:8080` |
+| `HTTP_TIMEOUT` | 请求超时时间（秒） | `30` |
+| `HTTP_MAX_RETRIES` | 自动重试次数 | `3` |
+| `HTTP_VERIFY_SSL` | 是否验证 SSL 证书 | `true` |
+| `HTTP_PROXY_TYPE` | 代理类型（"http" 或 "https"） | `None` |
+| `HTTP_PROXY_HOST` | 代理主机 | `None` |
+| `HTTP_PROXY_PORT` | 代理端口 | `None` |
+| `HTTP_USE_GZIP` | 是否使用 Gzip 压缩 | `false` |
+
+### 代理配置
+
+```python
+panda_data.init(
+    username="user",
+    password="pass",
+    base_url="http://service.example.com:8080",
+    proxy_type="http",
+    proxy_host="proxy.example.com",
+    proxy_port=8080,
+)
+```
+
+---
+
+## 📚 API 接口
+
+### 股票数据
+
+| 接口 | 说明 |
+|------|------|
+| `get_stock_detail(symbol, fields=None)` | 获取股票详情 |
+| `get_all_symbols(market="cn")` | 获取所有股票代码 |
+| `get_market_data(symbol, start_date, end_date, ...)` | 获取行情数据（日线） |
+| `get_market_min_data(symbol, start_date, end_date, ...)` | 获取分钟行情数据 |
+| `get_stock_flow(symbol)` | 获取资金流向 |
+| `get_main_shareholder(symbol)` | 获取主要股东信息 |
+
+**示例：**
+```python
+# 获取行情数据
+df = panda_data.get_market_data(
+    symbol=["000001.SZ", "000002.SZ"],
+    start_date="2024-01-01",
+    end_date="2024-01-31"
+)
+```
+
+### 异常数据（龙虎榜）
+
+| 接口 | 说明 |
+|------|------|
+| `get_abnormal(symbol, type, start_date, end_date, ...)` | 获取异常数据 |
+| `get_abnormal_detail(symbol, type, start_date, end_date, ...)` | 获取异常明细 |
+| `get_abnormal_types()` | 获取异常类型列表 |
+| `get_abnormal_stocks(date, type=None)` | 获取指定日期的异常股票 |
+
+**示例：**
+```python
+df = panda_data.get_abnormal(
+    symbol=["000001.SZ"],
+    start_date="2024-01-01",
+    end_date="2024-01-31"
+)
+```
+
+### 基金数据
+
+| 接口 | 说明 |
+|------|------|
+| `get_all_funds()` | 获取所有基金列表 |
+| `get_fund_pro(symbol)` | 获取基金持仓 |
+| `get_fund_nav(symbol)` | 获取基金净值 |
+
+### 指数数据
+
+| 接口 | 说明 |
+|------|------|
+| `get_index_symbol()` | 获取指数代码列表 |
+| `get_index_indicator(symbol)` | 获取指数指标 |
+| `get_index_weights(symbol)` | 获取指数权重 |
+| `get_index_stock(symbol)` | 获取指数成分股 |
+| `get_index_1m_market(symbol)` | 获取指数分钟行情 |
+
+### 行业数据
+
+| 接口 | 说明 |
+|------|------|
+| `get_industry_list()` | 获取行业列表 |
+| `get_industry_stock(industry)` | 获取行业股票 |
+| `get_stock_industry(symbol)` | 获取股票所属行业 |
+
+### 概念数据
+
+| 接口 | 说明 |
+|------|------|
+| `get_concept_list()` | 获取概念列表 |
+| `get_concept_stock(concept)` | 获取概念股票 |
+
+### 财务数据
+
+| 接口 | 说明 |
+|------|------|
+| `get_financial_ex(symbol)` | 获取财务数据 |
+| `get_financial_forecast(symbol)` | 获取业绩预告 |
+| `get_financial_performance(symbol)` | 获取业绩快报 |
+
+### 交易日历
+
+| 接口 | 说明 | 返回类型 |
+|------|------|---------|
+| `get_trading_calendar(start_date, end_date)` | 获取交易日历 | DataFrame |
+| `get_trading_days(start_date, end_date)` | 获取交易日列表 | DataFrame |
+| `is_trading_day(date)` | 判断是否为交易日 | bool |
+| `get_previous_trading_date(date)` | 获取前一个交易日 | str |
+| `get_next_trading_date(date)` | 获取下一个交易日 | str |
+| `get_latest_trading_date()` | 获取最新交易日 | str |
+
+### 其他数据
+
+| 接口 | 说明 |
+|------|------|
+| `get_buy_back(symbol)` | 获取回购数据 |
+| `get_securities_margin(symbol)` | 获取融资融券数据 |
+| `get_future_list()` | 获取期货列表 |
+| `get_future_factor_post(symbol)` | 获取期货因子数据 |
+| `get_consensus_report(symbol)` | 获取一致预期 |
+| `get_stock_connect(symbol)` | 获取沪港通数据 |
+
+---
+
+## 💡 使用示例
+
+```python
+import panda_data
+import pandas as pd
+
+# 初始化
+panda_data.init(
+    username="your_username",
+    password="your_password",
+    base_url="http://service.example.com:8080",
+)
+
+# 获取股票行情数据
+df = panda_data.get_market_data(
+    symbol=["000001.SZ", "000002.SZ"],
+    start_date="2024-01-01",
+    end_date="2024-01-31",
+    fields=["open", "high", "low", "close", "volume"]
+)
+
+# 数据分析
+print(f"共获取 {len(df)} 条数据")
+print(df.groupby("symbol")["close"].mean())
+```
+
+---
+
+## ❓ 常见问题
+
+### Q1: 如何设置代理？
+
+**A:** 通过代码或环境变量设置：
+
+```python
+panda_data.init(
+    username="user",
+    password="pass",
+    base_url="http://service.example.com:8080",
+    proxy_type="http",
+    proxy_host="proxy.example.com",
+    proxy_port=8080,
+)
+```
+
+### Q2: 如何启用 Gzip 压缩？
+
+**A:** 设置 `use_gzip=True`：
+
+```python
+panda_data.init(
+    username="user",
+    password="pass",
+    base_url="http://service.example.com:8080",
+    use_gzip=True,
+)
+```
+
+### Q3: 如何处理超时？
+
+**A:** 设置 `timeout` 参数：
+
+```python
+panda_data.init(
+    username="user",
+    password="pass",
+    base_url="http://service.example.com:8080",
+    timeout=60.0,  # 60 秒超时
+)
+```
+
+### Q4: 返回的 DataFrame 为空怎么办？
+
+**A:** 检查以下几点：
+1. 确认参数是否正确（股票代码、日期格式等）
+2. 确认请求的时间范围内是否有数据
+3. 确认账号是否有权限访问该数据
+4. 查看异常信息排查问题
+
+```python
+try:
+    df = panda_data.get_market_data(
+        symbol=["000001.SZ"],
+        start_date="2024-01-01",
+        end_date="2024-01-31"
+    )
+    if df.empty:
+        print("未找到数据，请检查参数")
+except Exception as e:
+    print(f"错误: {e}")
+```
+
+---
+
+## 🛠️ 错误处理
+
+SDK 提供了完善的异常处理机制：
+
+```python
+from panda_data.exceptions import (
+    ClientNotInitializedError,  # 客户端未初始化
+    AuthenticationError,        # 认证失败
+    ServiceError,              # 服务端错误
+)
+
+try:
+    df = panda_data.get_abnormal(symbol=["000001.SZ"])
+except ClientNotInitializedError:
+    print("请先调用 panda_data.init() 初始化客户端")
+except AuthenticationError:
+    print("认证失败，请检查用户名和密码")
+except ServiceError as e:
+    print(f"服务端错误: {e}")
+```
+
+### 异常类型说明
+
+| 异常类型 | 说明 | 解决方案 |
+|---------|------|---------|
+| `ClientNotInitializedError` | 客户端未初始化 | 调用 `panda_data.init()` 或 `panda_data.init_token()` |
+| `AuthenticationError` | 认证失败 | 检查用户名和密码是否正确 |
+| `ServiceError` | 服务端错误 | 检查服务端状态和请求参数 |
+
+---
+
+## 🏗️ 架构说明
+
+### 模块结构
+
+```
+panda_data/
+├── client.py            # 客户端入口与连接管理
+├── config/              # 配置加载与环境变量解析
+├── core/                # 面向业务的服务封装
+├── transport/           # HTTP 底层通信实现
+├── readers/             # 各类数据 Reader
+│   ├── abnormal_reader.py      # 异常数据
+│   ├── kline_reader.py         # K线数据
+│   ├── stock_reader.py         # 股票数据
+│   └── ...
+└── exceptions.py        # 异常定义
+```
+
+### 核心组件
+
+- **`PandaServiceClient`**: 封装与 Java 服务的 HTTP 通信逻辑
+- **`HTTPClient`**: 底层 HTTP 客户端，处理请求、响应、重试、代理等
+- **`ClientFactory`**: 工厂模式管理各类 Reader
+- **`Reader`**: 各类数据 Reader，封装特定数据接口的调用逻辑
+
+### 通信协议
+
+- **请求方法**: POST
+- **请求格式**: JSON
+- **响应格式**: JSON
+- **认证方式**: HTTP Basic Authentication
+- **压缩支持**: 可选 Gzip 压缩
+
+---
+
+## 📞 技术支持
+
+### 获取帮助
+
+- 📧 **技术支持**: [待补充]
+- 📝 **问题反馈**: [待补充]
+- 📚 **更多文档**: [待补充]
+
+### 相关资源
+
+- 项目仓库: [待补充]
+- 更新日志: [待补充]
+
+---
+
+**文档维护**: 数据团队  
+**最后更新**: 2024-XX-XX

@@ -1,0 +1,212 @@
+"""panda_data SDK public interface."""
+
+from .client import get_client, get_factory
+from .readers import (
+    financial_and_factors_reader,
+    future_reader,
+    market_reader,
+    market_reference_reader,
+    trading_tools_reader,
+    init_token,
+    fund_reader,
+    macro_reader,
+    option_reader,
+    hk_reader,
+    us_reader
+)
+
+init_token = init_token.init_token
+
+# 旧接口暂时兼容
+get_market_data = market_reader.get_market_data
+get_market_min_data = market_reader.get_market_min_data
+get_stock_rt_daily = market_reader.get_stock_rt_daily
+get_stock_rt_min = market_reader.get_stock_rt_min
+get_stock_daily_post = market_reader.get_stock_daily_post
+get_stock_daily_pre = market_reader.get_stock_daily_pre
+get_future_market_post = future_reader.get_future_daily_post
+
+get_stock_min = market_reader.get_stock_min
+get_index_min = market_reader.get_index_min
+get_future_min = market_reader.get_future_min
+
+# 交易工具
+get_trade_cal = trading_tools_reader.get_trade_cal
+get_prev_trade_date = trading_tools_reader.get_prev_trade_date
+get_last_trade_date = trading_tools_reader.get_last_trade_date
+get_stock_status_change = trading_tools_reader.get_stock_status_change
+get_trade_list = trading_tools_reader.get_trade_list
+
+# A股数据
+get_stock_daily = market_reader.get_stock_daily
+get_concept_list = market_reference_reader.get_concept_list
+get_concept_constituents = market_reference_reader.get_concept_constituents
+get_stock_detail = market_reference_reader.get_stock_detail
+get_index_detail = market_reference_reader.get_index_detail
+get_industry_detail = market_reference_reader.get_industry_detail
+get_industry_constituents = market_reference_reader.get_industry_constituents
+get_stock_industry = market_reference_reader.get_stock_industry
+get_index_daily = market_reader.get_index_daily
+get_index_indicator = market_reference_reader.get_index_indicator
+get_index_weights = market_reference_reader.get_index_weights
+get_lhb_list = market_reference_reader.get_lhb_list
+get_lhb_detail = market_reference_reader.get_lhb_detail
+get_repurchase = market_reference_reader.get_repurchase
+get_margin = market_reference_reader.get_margin
+get_hsgt_hold = market_reference_reader.get_hsgt_hold
+get_investor_activity = market_reference_reader.get_investor_activity
+get_restricted_list = market_reference_reader.get_restricted_list
+get_holder_count = market_reference_reader.get_holder_count
+get_top_holders = market_reference_reader.get_top_holders
+get_block_trade = market_reference_reader.get_block_trade
+get_share_float = market_reference_reader.get_share_float
+get_stock_dividend = market_reference_reader.get_stock_dividend_info
+get_stock_split = market_reference_reader.get_stock_split_info
+get_stock_cash_dividend = market_reference_reader.get_stock_cash_dividend
+get_stock_dividend_amount = market_reference_reader.get_stock_dividend_amount
+get_stock_private_placement = market_reference_reader.get_stock_private_placement
+get_stock_allotment = market_reference_reader.get_stock_allotment
+get_stock_pledge=market_reference_reader.get_stock_pledge
+get_stock_pledge_stat=market_reference_reader.get_stock_pledge_stat
+get_stock_shareholder_change = market_reference_reader.get_stock_shareholder_change
+get_fina_forecast = financial_and_factors_reader.get_fina_forecast
+get_fina_performance = financial_and_factors_reader.get_fina_performance
+get_fina_reports = financial_and_factors_reader.get_fina_reports
+get_audit_opinion = financial_and_factors_reader.get_audit_opinion
+
+
+# 期货数据
+get_future_daily = market_reader.get_future_daily
+get_future_daily_post = future_reader.get_future_daily_post_market
+get_future_detail = future_reader.get_future_detail
+get_future_dominant = future_reader.get_future_dominant
+get_future_netposi_rank = future_reader.get_future_netposi_rank
+get_broker_grade = future_reader.get_broker_grade
+get_broker_netmarg = future_reader.get_broker_net_margin
+get_broker_netmarg_change = future_reader.get_broker_net_margin_change
+get_broker_totlmarg = future_reader.get_broker_total_margin
+get_future_basis = future_reader.get_future_basis
+get_future_warehouse_receipt = future_reader.get_future_wr
+get_future_net_flow = future_reader.get_future_net_flow
+get_future_contract_indicators = future_reader.get_future_contract_daily_indicators
+get_broker_variety_profit = future_reader.get_broker_variety_profit
+get_future_variety_posi = future_reader.get_future_variety_posi_rank
+get_future_symbol_posi = future_reader.get_future_symbol_posi_rank
+get_future_ls_ratio=future_reader.get_future_ls_ratio
+get_future_netcap_change=future_reader.get_future_net_cap_change
+get_future_contract_rank=future_reader.get_future_contract_rank
+get_future_term_structure = future_reader.get_future_term_structure
+get_future_inventory = future_reader.get_future_inventory
+get_future_calendar_arbitrage = future_reader.get_future_cross_term_arbitrage
+get_future_free_spread = future_reader.get_future_free_spread
+get_future_free_ratio = future_reader.get_future_free_ratio
+get_broker_oi_value = future_reader.get_future_symbol_oi_value
+get_future_nonbroker_net = future_reader.get_future_nonbroker_net_oi
+get_broker_profit = future_reader.get_future_broker_profit
+get_broker_flow_daily = future_reader.get_future_broker_margin_flow_daily
+get_broker_ls_ratio = future_reader.get_future_broker_ls_ratio
+get_broker_loss_rank = future_reader.get_future_sat_loss
+get_broker_profit_rank = future_reader.get_future_sat_profit
+get_broker_build_process = future_reader.get_future_building_process
+get_future_trader_quote = future_reader.get_future_trader_quotation
+get_future_virtual_ratio = future_reader.get_future_ratio_virtual_real
+get_future_spot_profit=future_reader.get_future_spot_profit
+get_future_variety_mcap = future_reader.get_future_cap_value
+get_future_dominant_corr = future_reader.get_future_dominant_correlation
+get_future_contract_pool = future_reader.get_future_contract_pool
+
+
+# 期权数据
+get_option_detail = option_reader.get_option_detail
+get_option_underlying_detail = option_reader.get_option_underlying_detail
+get_option_daily = option_reader.get_option_market_data
+get_option_implied_volatility = option_reader.get_option_implied_volatility
+get_option_underlying_volatility = option_reader.get_option_underlying_volatility
+
+get_option_exercise = option_reader.get_option_exercise
+get_option_spot_market = option_reader.get_option_spot_market
+get_option_risk_indicators = option_reader.get_option_risk_indicators
+get_option_static = option_reader.get_option_static
+
+# 量化因子数据
+get_factor = financial_and_factors_reader.get_factor
+get_adj_factor = financial_and_factors_reader.get_adj_factor
+
+# 港股
+get_hk_daily = hk_reader.get_hk_daily
+get_hk_daily_pre = hk_reader.get_hk_daily_pre
+get_hk_daily_post = hk_reader.get_hk_daily_post
+get_factor_hk = hk_reader.get_factor_hk
+get_adj_factor_hk = financial_and_factors_reader.get_adj_factor_hk
+get_hk_detail = hk_reader.get_hk_detail
+get_stock_dividend_event = hk_reader.get_stock_dividend_event
+get_stock_market_event = hk_reader.get_stock_market_event
+get_stock_meeting_event = hk_reader.get_stock_meeting_event
+get_stock_financial_event = hk_reader.get_stock_financial_event
+get_stock_ir_event = hk_reader.get_stock_ir_event
+get_stock_investor_concentration = hk_reader.get_stock_investor_concentration
+get_stock_top20_concentration = hk_reader.get_stock_top20_concentration
+get_stock_investor_ranking = hk_reader.get_stock_investor_ranking
+get_stock_insider_trade = hk_reader.get_stock_insider_trade
+get_stock_shareholder_holding = hk_reader.get_stock_shareholder_holding
+get_stock_industry_median = hk_reader.get_stock_industry_median
+get_stock_pv_indicator = hk_reader.get_stock_pv_indicator
+get_index_component = hk_reader.get_index_component
+get_stock_ncycl_consensus = hk_reader.get_stock_ncycl_consensus
+get_stock_ncycl_estimate = hk_reader.get_stock_ncycl_estimate
+get_stock_operating_indicator = hk_reader.get_stock_operating_indicator
+get_stock_mktfin_indicator = hk_reader.get_stock_mktfin_indicator
+get_fina_statement = hk_reader.get_fina_statement
+
+
+# 美股
+get_us_daily = us_reader.get_us_daily
+get_us_detail = us_reader.get_us_detail
+get_stock_dividend_activity = us_reader.get_stock_dividend_activity
+get_stock_market_activity = us_reader.get_stock_market_activity
+get_stock_meeting_activity = us_reader.get_stock_meeting_activity
+get_stock_financial_activity = us_reader.get_stock_financial_activity
+get_stock_ir_activity = us_reader.get_stock_ir_activity
+get_stock_investor_centralization = us_reader.get_stock_investor_centralization
+get_stock_top20_centralization = us_reader.get_stock_top20_centralization
+get_stock_investor_leaderboard = us_reader.get_stock_investor_leaderboard
+get_stock_insider_transaction = us_reader.get_stock_insider_transaction
+get_stock_shareholder_report = us_reader.get_stock_shareholder_report
+get_stock_sector_median = us_reader.get_stock_sector_median
+get_stock_pv_metric = us_reader.get_stock_pv_metric
+get_index_constituent = us_reader.get_index_constituent
+get_stock_recommendation_consensus = us_reader.get_stock_recommendation_consensus
+get_stock_recommendation_estimate = us_reader.get_stock_recommendation_estimate
+get_stock_operating_metric = us_reader.get_stock_operating_metric
+get_stock_mktfin_metric = us_reader.get_stock_mktfin_metric
+get_fina_ex = us_reader.get_fina_ex
+
+
+# 宏观
+globals().update({n: getattr(macro_reader, n) for n in macro_reader.MACRO_ALL_PUBLIC_NAMES})
+get_macro_cal = macro_reader.get_macro_cal
+get_macro_cal_config = macro_reader.get_macro_cal_config
+get_macro_cal_info = macro_reader.get_macro_cal_info
+get_macro_detail = macro_reader.get_macro_detail
+
+# 基金数据
+get_fund_detail = fund_reader.get_fund_detail
+get_fund_daily = fund_reader.get_fund_daily
+get_fund_daily_post = fund_reader.get_fund_daily_post
+get_fund_daily_pre = fund_reader.get_fund_daily_pre
+get_fund_etf_cr = fund_reader.get_fund_etf_cr
+get_fund_etf_constituents = fund_reader.get_fund_etf_constituents
+get_fund_etf_cr_net = fund_reader.get_fund_etf_net
+get_fund_etf_cr_limits = fund_reader.get_fund_etf_cr_limits
+
+# A股
+get_stock_competitor_information = market_reference_reader.get_stock_competitor_information
+get_stock_status_over_allotment = market_reference_reader.get_stock_status_over_allotment
+get_stock_intermediary_information = market_reference_reader.get_stock_intermediary_information
+get_stock_rela_party_trans= market_reference_reader.get_stock_rela_party_trans
+
+__all__ = [name for name in globals().keys() if name.startswith('get_')] + [
+    'init', 'init_token', 'get_client', 'get_factory',
+    'is_authenticated', 'auth_remaining_seconds', 'auth_expires_at',
+    'auth_info', 'clear_auth',
+]
