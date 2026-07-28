@@ -33,9 +33,26 @@ class DailyBar(BaseModel):
             raise ValueError("close must be between low and high")
 
         return self
+
+
 class MacdResult(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     dif: float
     dea: float
     histogram: float
+
+
+class PriceDirection(StrEnum):
+    UP = "up"
+    FLAT = "flat"
+    DOWN = "down"
+
+
+class VolumeAnalysisResult(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    latest_volume: int = Field(ge=0)
+    average_volume: float = Field(gt=0)
+    volume_ratio: float = Field(ge=0)
+    price_direction: PriceDirection

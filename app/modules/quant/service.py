@@ -1,7 +1,11 @@
 from collections.abc import Sequence
 
-from app.modules.quant.schemas import DailyBar, MacdResult
-
+from app.modules.quant.schemas import (
+    DailyBar,
+    MacdResult,
+    PriceDirection,
+    VolumeAnalysisResult,
+)
 
 def calculate_moving_average(
     bars: Sequence[DailyBar],
@@ -94,4 +98,38 @@ def calculate_macd(
         dif=dif,
         dea=dea,
         histogram=2 * (dif - dea),
+    )
+def analyze_volume(
+    bars: Sequence[DailyBar],
+    baseline_period: int = 5,
+) -> VolumeAnalysisResult | None:
+    if baseline_period <= 0:
+        raise ValueError("baseline period must be greater than zero")
+
+    if len(bars) < baseline_period + 1:
+        return None
+
+    latest_bar = bars[-1]
+    previous_bar = bars[-2]
+    baseline_bars = bars[-baseline_period - 1 : -1]
+
+    average_volume = (
+        sum(bar.volume for bar in baseline_bars) / baseline_period
+    )
+
+    if average_volume <= 0:
+        return None
+
+    if latest_bar.close > previous_bar.close:
+        price_direction = PriceDirection.UP
+    elif latest_bar.close < previous_bar.close:
+        price_direction = PriceDirection.DOWN
+    else:
+        price_direction = PriceDirection.FLAT
+
+    return VolumeAnalysisResult(
+        latest_volume=latest_bar.volume,
+        average_volume=average_volume,
+        volume_ratio=latest_bar.volume / average_volume,
+        price_direction=price_direction,
     )
