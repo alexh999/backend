@@ -56,3 +56,60 @@ class VolumeAnalysisResult(BaseModel):
     average_volume: float = Field(gt=0)
     volume_ratio: float = Field(ge=0)
     price_direction: PriceDirection
+
+
+class TrendState(StrEnum):
+    UPWARD = "upward"
+    DOWNWARD = "downward"
+    MIXED = "mixed"
+    INSUFFICIENT_DATA = "insufficient_data"
+
+
+class RsiState(StrEnum):
+    HIGH = "high"
+    RELATIVELY_STRONG = "relatively_strong"
+    BALANCED = "balanced"
+    RELATIVELY_WEAK = "relatively_weak"
+    LOW = "low"
+    INSUFFICIENT_DATA = "insufficient_data"
+
+
+class MacdState(StrEnum):
+    POSITIVE = "positive"
+    NEGATIVE = "negative"
+    MIXED = "mixed"
+    INSUFFICIENT_DATA = "insufficient_data"
+
+
+class VolumeState(StrEnum):
+    LOW = "low"
+    INCONCLUSIVE = "inconclusive"
+    CONFIRMING = "confirming"
+    CONTRADICTING = "contradicting"
+    INSUFFICIENT_DATA = "insufficient_data"
+
+
+class EvidenceState(StrEnum):
+    CONSISTENT_POSITIVE = "consistent_positive"
+    CONSISTENT_NEGATIVE = "consistent_negative"
+    MIXED = "mixed"
+    INSUFFICIENT_DATA = "insufficient_data"
+
+
+class RiskFlag(StrEnum):
+    RSI_HIGH = "rsi_high"
+    RSI_LOW = "rsi_low"
+    PRICE_FAR_ABOVE_MA20 = "price_far_above_ma20"
+    PRICE_FAR_BELOW_MA20 = "price_far_below_ma20"
+    INSUFFICIENT_DATA = "insufficient_data"
+
+
+class TechnicalSummary(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    trend: TrendState
+    rsi: RsiState
+    macd: MacdState
+    volume: VolumeState
+    evidence: EvidenceState
+    risk_flags: tuple[RiskFlag, ...] = ()
