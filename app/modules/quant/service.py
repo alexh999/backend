@@ -14,7 +14,10 @@ from app.modules.quant.schemas import (
     RiskFlag,
     TechnicalSummary,
 )
-from app.modules.quant.market_data import MarketDataProvider
+from app.modules.quant.market_data import (
+    MarketDataProvider,
+    normalize_daily_bars,
+)
 
 
 def calculate_moving_average(
@@ -417,5 +420,6 @@ def analyze_symbol_technical_summary(
         symbol=normalized_symbol,
         limit=limit,
     )
+    normalized_bars = normalize_daily_bars(bars)
 
-    return analyze_technical_summary(bars)
+    return analyze_technical_summary(normalized_bars)

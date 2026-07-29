@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from app.modules.quant.schemas import DailyBar, TechnicalSummary
+from app.modules.quant.schemas import DailyBar, TechnicalSummary, TrendState
 from app.modules.quant.service import analyze_symbol_technical_summary
 
 
@@ -66,3 +66,51 @@ def test_analyze_symbol_rejects_invalid_limit() -> None:
         )
 
     assert market_data.calls == []
+
+
+def test_normalize_daily_bars_sorts_newest_first_data() -> None:
+    market_data = StubMarketData()
+    original_get_daily_bars = market_data.get_daily_bars
+
+    def get_reversed_bars(
+        symbol: str,
+        limit: int,
+    ) -> list[DailyBar]:
+        return list(reversed(original_get_daily_bars(symbol, limit)))
+
+    market_data.get_daily_bars = get_reversed_bars
+
+    result = analyze_symbol_technical_summary(
+        symbol="AAPL",
+        market_data=market_data,
+        limit=40,
+    )
+
+    assert isinstance(result, TechnicalSummary)
+    assert result.trend == TrendState.UPWARD
+    assert market_data.calls == [("AAPL", 40)]
+
+
+def test_normalize_daily_bars_rejects_duplicate_dates() -> None:
+    market_data = StubMarketData()
+
+    def get_duplicate_bars(
+        symbol: str,
+        limit: int,
+    ) -> list[DailyBar]:
+        bars = market_data.get_daily_bars(symbol, limit)
+        return [*bars, bars[-1]]
+
+    with pytest.raises(
+        ValueError,
+        match="daily bars must not contain duplicate trade dates",
+    ):
+        analyze_symbol_technical_summary(
+            symbol="AAPL",
+            market_data=type(
+                "DuplicateMarketData",
+                (),
+                {"get_daily_bars": staticmethod(get_duplicate_bars)},
+            )(),
+            limit=40,
+        )
