@@ -348,3 +348,19 @@ def test_decode_parquet_records_returns_pylist() -> None:
             "volume": 88_000_000.0,
         }
     ]
+
+
+def test_market_stock_service_returns_daily_bars_for_quant() -> None:
+    service = MarketStockService(
+        StubPandaAIClient(),
+        symbols=TEST_MARKET_SYMBOLS,
+    )
+
+    bars = service.get_daily_bars("aapl", limit=3)
+
+    assert len(bars) == 3
+    assert bars[0].ticker == "AAPL"
+    assert bars[0].trade_date == date(2026, 7, 24)
+    assert bars[0].previous_close == 215.2
+    assert bars[-1].close == 220.3
+    assert bars[-1].volume == 67_000_000

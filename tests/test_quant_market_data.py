@@ -1,8 +1,13 @@
 from datetime import date, timedelta
 
 import pytest
+from fastapi.testclient import TestClient
 
 from app.core.errors import ApplicationError
+from app.main import create_app
+from app.modules.market.schemas import MarketDailyBarData
+from app.modules.market.service import get_market_stock_service
+from app.modules.quant.market_data import MarketServiceDataProvider
 from app.modules.quant.schemas import (
     DailyBar,
     RiskFlag,
@@ -153,3 +158,74 @@ def test_analyze_symbol_returns_insufficient_state_for_short_history() -> None:
     assert result.trend == TrendState.INSUFFICIENT_DATA
     assert RiskFlag.DATA_INSUFFICIENT in result.risk_flags
     assert market_data.calls == [("AAPL", 10)]
+
+
+def test_market_service_provider_maps_daily_bars() -> None:
+    class StubMarketService:
+        def get_daily_bars(
+            self,
+            symbol: str,
+            limit: int,
+        ) -> list[MarketDailyBarData]:
+            assert symbol == "AAPL"
+            assert limit == 1
+            return [
+                MarketDailyBarData(
+                    ticker="AAPL",
+                    trade_date=date(2026, 7, 29),
+                    open=210.0,
+                    high=215.0,
+                    low=208.0,
+                    close=214.0,
+                    previous_close=209.0,
+                    volume=12_345.0,
+                )
+            ]
+
+    provider = MarketServiceDataProvider(StubMarketService())
+    bars = provider.get_daily_bars("AAPL", 1)
+
+    assert len(bars) == 1
+    assert bars[0].trade_date == date(2026, 7, 29)
+    assert bars[0].previous_close == 209.0
+    assert bars[0].volume == 12_345
+
+
+def test_symbol_technical_summary_endpoint_uses_market_service() -> None:
+    class StubMarketService:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, int]] = []
+
+        def get_daily_bars(
+            self,
+            symbol: str,
+            limit: int,
+        ) -> list[MarketDailyBarData]:
+            self.calls.append((symbol, limit))
+            return [
+                MarketDailyBarData(
+                    ticker=symbol,
+                    trade_date=date(2026, 1, 1) + timedelta(days=index),
+                    open=100.0 + index,
+                    high=101.0 + index,
+                    low=99.0 + index,
+                    close=100.0 + index,
+                    previous_close=99.0 + index,
+                    volume=10_000 + index,
+                )
+                for index in range(limit)
+            ]
+
+    market_service = StubMarketService()
+    app = create_app()
+    app.dependency_overrides[get_market_stock_service] = lambda: market_service
+    client = TestClient(app)
+
+    response = client.get(
+        "/api/v1/quant/stocks/aapl/technical-summary",
+        params={"limit": 40},
+    )
+
+    assert response.status_code == 200
+    assert market_service.calls == [("AAPL", 40)]
+    assert response.json()["trend"] == "upward"
