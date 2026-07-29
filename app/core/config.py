@@ -17,6 +17,13 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173,"
         "http://127.0.0.1:8080"
     )
+    pandaai_username: str = ""
+    pandaai_password: str = ""
+    pandaai_base_url: str = "http://pandadata.pandaaiquant.com"
+    pandaai_timeout_seconds: float = Field(default=15.0, gt=0, le=120)
+    pandaai_max_retries: int = Field(default=2, ge=1, le=10)
+    pandaai_verify_ssl: bool = True
+    pandaai_cache_ttl_seconds: int = Field(default=60, ge=1, le=86400)
     siliconflow_api_key: SecretStr | None = None
     siliconflow_base_url: str = "https://api.siliconflow.com/v1"
     siliconflow_model: str = Field(min_length=1)
