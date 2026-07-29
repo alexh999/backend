@@ -14,6 +14,7 @@ from app.modules.quant.schemas import (
     RiskFlag,
     TechnicalSummary,
 )
+from app.modules.quant.market_data import MarketDataProvider
 
 
 def calculate_moving_average(
@@ -397,3 +398,24 @@ def analyze_technical_summary(
         macd=macd,
         volume=volume,
     )
+
+
+def analyze_symbol_technical_summary(
+    symbol: str,
+    market_data: MarketDataProvider,
+    limit: int = 60,
+) -> TechnicalSummary:
+    normalized_symbol = symbol.strip().upper()
+
+    if not normalized_symbol:
+        raise ValueError("symbol must not be blank")
+
+    if limit <= 0:
+        raise ValueError("limit must be greater than zero")
+
+    bars = market_data.get_daily_bars(
+        symbol=normalized_symbol,
+        limit=limit,
+    )
+
+    return analyze_technical_summary(bars)
