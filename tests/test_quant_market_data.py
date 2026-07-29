@@ -2,7 +2,13 @@ from datetime import date, timedelta
 
 import pytest
 
-from app.modules.quant.schemas import DailyBar, TechnicalSummary, TrendState
+from app.core.errors import ApplicationError
+from app.modules.quant.schemas import (
+    DailyBar,
+    RiskFlag,
+    TechnicalSummary,
+    TrendState,
+)
 from app.modules.quant.service import analyze_symbol_technical_summary
 
 
@@ -114,3 +120,36 @@ def test_normalize_daily_bars_rejects_duplicate_dates() -> None:
             )(),
             limit=40,
         )
+
+
+def test_analyze_symbol_rejects_empty_market_data() -> None:
+    class EmptyMarketData:
+        def get_daily_bars(
+            self,
+            symbol: str,
+            limit: int,
+        ) -> list[DailyBar]:
+            return []
+
+    with pytest.raises(ApplicationError) as error:
+        analyze_symbol_technical_summary(
+            symbol="AAPL",
+            market_data=EmptyMarketData(),
+        )
+
+    assert error.value.status_code == 404
+    assert error.value.message == "No market data is available for this symbol."
+
+
+def test_analyze_symbol_returns_insufficient_state_for_short_history() -> None:
+    market_data = StubMarketData()
+
+    result = analyze_symbol_technical_summary(
+        symbol="AAPL",
+        market_data=market_data,
+        limit=10,
+    )
+
+    assert result.trend == TrendState.INSUFFICIENT_DATA
+    assert RiskFlag.DATA_INSUFFICIENT in result.risk_flags
+    assert market_data.calls == [("AAPL", 10)]

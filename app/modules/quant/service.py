@@ -1,22 +1,23 @@
 from collections.abc import Sequence
 from math import isfinite
 
-from app.modules.quant.schemas import (
-    DailyBar,
-    MacdResult,
-    MomentumState,
-    PriceDirection,
-    StrengthState,
-    VolumeAnalysisResult,
-    TrendState,
-    ParticipationState,
-    EvidenceConsistency,
-    RiskFlag,
-    TechnicalSummary,
-)
+from app.core.errors import ApplicationError
 from app.modules.quant.market_data import (
     MarketDataProvider,
     normalize_daily_bars,
+)
+from app.modules.quant.schemas import (
+    DailyBar,
+    EvidenceConsistency,
+    MacdResult,
+    MomentumState,
+    ParticipationState,
+    PriceDirection,
+    RiskFlag,
+    StrengthState,
+    TechnicalSummary,
+    TrendState,
+    VolumeAnalysisResult,
 )
 
 
@@ -421,5 +422,11 @@ def analyze_symbol_technical_summary(
         limit=limit,
     )
     normalized_bars = normalize_daily_bars(bars)
+
+    if not normalized_bars:
+        raise ApplicationError(
+            "No market data is available for this symbol.",
+            status_code=404,
+        )
 
     return analyze_technical_summary(normalized_bars)
