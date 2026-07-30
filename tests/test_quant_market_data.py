@@ -14,7 +14,10 @@ from app.modules.quant.schemas import (
     TechnicalSummary,
     TrendState,
 )
-from app.modules.quant.service import analyze_symbol_technical_summary
+from app.modules.quant.service import (
+    analyze_symbol_stock,
+    analyze_symbol_technical_summary,
+)
 
 
 class StubMarketData:
@@ -229,3 +232,74 @@ def test_symbol_technical_summary_endpoint_uses_market_service() -> None:
     assert response.status_code == 200
     assert market_service.calls == [("AAPL", 40)]
     assert response.json()["trend"] == "upward"
+
+
+def test_analyze_symbol_stock_builds_complete_payload_once() -> None:
+    market_data = StubMarketData()
+
+    result = analyze_symbol_stock(
+        symbol=" aapl ",
+        market_data=market_data,
+        limit=40,
+    )
+
+    assert result.symbol == "AAPL"
+    assert len(result.bars) == 40
+    assert result.latest_bar == result.bars[-1]
+    assert result.ma5 is not None
+    assert result.ma10 is not None
+    assert result.ma20 is not None
+    assert result.macd is not None
+    assert result.rsi14 is not None
+    assert result.volume is not None
+    assert result.technical_summary.trend == TrendState.UPWARD
+    assert market_data.calls == [("AAPL", 40)]
+
+
+def test_symbol_analysis_endpoint_returns_complete_payload() -> None:
+    class StubMarketService:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, int]] = []
+
+        def get_daily_bars(
+            self,
+            symbol: str,
+            limit: int,
+        ) -> list[MarketDailyBarData]:
+            self.calls.append((symbol, limit))
+            return [
+                MarketDailyBarData(
+                    ticker=symbol,
+                    trade_date=date(2026, 1, 1) + timedelta(days=index),
+                    open=100.0 + index,
+                    high=101.0 + index,
+                    low=99.0 + index,
+                    close=100.0 + index,
+                    previous_close=99.0 + index,
+                    volume=10_000 + index,
+                )
+                for index in range(limit)
+            ]
+
+    market_service = StubMarketService()
+    app = create_app()
+    app.dependency_overrides[get_market_stock_service] = lambda: market_service
+    client = TestClient(app)
+
+    response = client.get(
+        "/api/v1/quant/stocks/aapl/analysis",
+        params={"limit": 40},
+    )
+
+    assert response.status_code == 200
+    assert market_service.calls == [("AAPL", 40)]
+
+    payload = response.json()
+    assert payload["symbol"] == "AAPL"
+    assert len(payload["bars"]) == 40
+    assert payload["latest_bar"] == payload["bars"][-1]
+    assert payload["ma5"] is not None
+    assert payload["macd"] is not None
+    assert payload["rsi14"] is not None
+    assert payload["volume"] is not None
+    assert payload["technical_summary"]["trend"] == "upward"
