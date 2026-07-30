@@ -112,3 +112,18 @@ class TechnicalSummary(BaseModel):
     participation: ParticipationState
     consistency: EvidenceConsistency
     risk_flags: tuple[RiskFlag, ...] = ()
+
+
+class QuantStockAnalysis(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    symbol: str
+    bars: tuple[DailyBar, ...]
+    latest_bar: DailyBar
+    ma5: float | None = None
+    ma10: float | None = None
+    ma20: float | None = None
+    macd: MacdResult | None = None
+    rsi14: float | None = None
+    volume: VolumeAnalysisResult | None = None
+    technical_summary: TechnicalSummary
