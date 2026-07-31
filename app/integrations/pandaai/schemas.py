@@ -46,6 +46,19 @@ class PandaAIStockDetailRecord(PandaAIBaseRecord):
     status: int | None = None
 
 
+class PandaAIIndexDetailRecord(PandaAIBaseRecord):
+    symbol: str
+    name: str | None = None
+    index_name: str | None = None
+    full_name: str | None = None
+    display_name: str | None = None
+    exchange: str | None = None
+    publisher: str | None = None
+    category: str | None = None
+    listed_date: str | None = None
+    status: int | None = None
+
+
 class PandaAIUsDailyRecord(PandaAIBaseRecord):
     symbol: str
     date: str
@@ -92,6 +105,16 @@ class PandaAICompanyProfile(BaseModel):
     industry_group: str | None = None
     office_country: str | None = None
     status: int | None = None
+
+
+class PandaAIIndexProfile(BaseModel):
+    symbol: str
+    index_name: str
+    exchange_label: str | None = None
+    listed_date: date | None = None
+    status: int | None = None
+    publisher: str | None = None
+    category: str | None = None
 
 
 class PandaAIDailyBar(BaseModel):
