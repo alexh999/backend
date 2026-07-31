@@ -10,6 +10,17 @@ class MarketStockStatData(BaseModel):
     value: str
 
 
+class MarketDailyBarData(BaseModel):
+    ticker: str
+    trade_date: date
+    open: float
+    high: float
+    low: float
+    close: float
+    previous_close: float | None = None
+    volume: float | None = None
+
+
 class MarketChartPoint(BaseModel):
     date: date
     close: float

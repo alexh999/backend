@@ -1,18 +1,24 @@
 from collections.abc import Sequence
 from math import isfinite
 
+from app.core.errors import ApplicationError
+from app.modules.quant.market_data import (
+    MarketDataProvider,
+    normalize_daily_bars,
+)
 from app.modules.quant.schemas import (
     DailyBar,
+    EvidenceConsistency,
     MacdResult,
     MomentumState,
-    PriceDirection,
-    StrengthState,
-    VolumeAnalysisResult,
-    TrendState,
     ParticipationState,
-    EvidenceConsistency,
+    PriceDirection,
+    QuantStockAnalysis,
     RiskFlag,
+    StrengthState,
     TechnicalSummary,
+    TrendState,
+    VolumeAnalysisResult,
 )
 
 
@@ -396,4 +402,72 @@ def analyze_technical_summary(
         rsi=rsi,
         macd=macd,
         volume=volume,
+    )
+
+
+def analyze_symbol_technical_summary(
+    symbol: str,
+    market_data: MarketDataProvider,
+    limit: int = 60,
+) -> TechnicalSummary:
+    normalized_symbol = symbol.strip().upper()
+
+    if not normalized_symbol:
+        raise ValueError("symbol must not be blank")
+
+    if limit <= 0:
+        raise ValueError("limit must be greater than zero")
+
+    bars = market_data.get_daily_bars(
+        symbol=normalized_symbol,
+        limit=limit,
+    )
+    normalized_bars = normalize_daily_bars(bars)
+
+    if not normalized_bars:
+        raise ApplicationError(
+            "No market data is available for this symbol.",
+            status_code=404,
+        )
+
+    return analyze_technical_summary(normalized_bars)
+
+
+def analyze_symbol_stock(
+    symbol: str,
+    market_data: MarketDataProvider,
+    limit: int = 60,
+) -> QuantStockAnalysis:
+    normalized_symbol = symbol.strip().upper()
+
+    if not normalized_symbol:
+        raise ValueError("symbol must not be blank")
+
+    if limit <= 0:
+        raise ValueError("limit must be greater than zero")
+
+    bars = normalize_daily_bars(
+        market_data.get_daily_bars(
+            symbol=normalized_symbol,
+            limit=limit,
+        )
+    )
+
+    if not bars:
+        raise ApplicationError(
+            "No market data is available for this symbol.",
+            status_code=404,
+        )
+
+    return QuantStockAnalysis(
+        symbol=normalized_symbol,
+        bars=bars,
+        latest_bar=bars[-1],
+        ma5=calculate_moving_average(bars, period=5),
+        ma10=calculate_moving_average(bars, period=10),
+        ma20=calculate_moving_average(bars, period=20),
+        macd=calculate_macd(bars),
+        rsi14=calculate_rsi(bars),
+        volume=analyze_volume(bars),
+        technical_summary=analyze_technical_summary(bars),
     )

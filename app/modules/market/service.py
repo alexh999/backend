@@ -21,6 +21,7 @@ from app.integrations.pandaai.schemas import (
 )
 from app.modules.market.schemas import (
     MarketChartCandleData,
+    MarketDailyBarData,
     MarketChartPoint,
     MarketChartRangeData,
     MarketIndexOverviewResponse,
@@ -150,6 +151,72 @@ class MarketStockService:
             preview_items=preview_items,
             groups=groups,
         )
+
+    def get_daily_bars(
+        self,
+        symbol: str,
+        limit: int,
+    ) -> list[MarketDailyBarData]:
+        ticker = _normalize_market_symbol(symbol)
+
+        if not ticker:
+            raise ApplicationError("Stock symbol is required.", status_code=400)
+
+        if limit <= 0:
+            raise ApplicationError(
+                "Daily bar limit must be greater than zero.",
+                status_code=400,
+            )
+
+        start_date = _recent_history_start_date(max(limit * 2 + 10, 30))
+
+        try:
+            if _is_a_share_symbol(ticker):
+                history = self._pandaai_client.get_cn_daily(
+                    ticker,
+                    start_date=start_date,
+                    end_date=date.today(),
+                )
+                latest_bar = self._pandaai_client.get_cn_rt_daily(ticker)
+                if latest_bar is not None:
+                    history = _merge_latest_bar(history, latest_bar)
+            else:
+                history = self._pandaai_client.get_us_daily(
+                    ticker,
+                    start_date=start_date,
+                    end_date=date.today(),
+                )
+        except PandaAIIntegrationError as exc:
+            raise ApplicationError(
+                f"Unable to load market data for {ticker}.",
+                status_code=502,
+            ) from exc
+
+        history = sorted(history, key=lambda item: item.trade_date)
+        selected_history = history[-limit:]
+
+        result: list[MarketDailyBarData] = []
+        for bar in selected_history:
+            bar_index = history.index(bar)
+            previous_close = (
+                history[bar_index - 1].close
+                if bar_index > 0
+                else None
+            )
+            result.append(
+                MarketDailyBarData(
+                    ticker=ticker,
+                    trade_date=bar.trade_date,
+                    open=bar.open,
+                    high=bar.high,
+                    low=bar.low,
+                    close=bar.close,
+                    previous_close=previous_close,
+                    volume=bar.volume,
+                )
+            )
+
+        return result
 
     def list_stocks(self) -> list[MarketStockListItemResponse]:
         max_workers = min(len(self._symbols), 6) or 1
