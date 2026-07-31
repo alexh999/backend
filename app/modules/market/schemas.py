@@ -19,6 +19,7 @@ class MarketDailyBarData(BaseModel):
     close: float
     previous_close: float | None = None
     volume: float | None = None
+    amount: float | None = None
 
 
 class MarketChartPoint(BaseModel):
@@ -64,6 +65,26 @@ class MarketStockListItemResponse(BaseModel):
     change_percent: float
     reference_value: float
     sparkline_values: list[float]
+
+
+class MarketStockSnapshotData(BaseModel):
+    ticker: str
+    company_name: str
+    exchange_label: str | None = None
+    latest_trading_date: date
+    latest_close: float
+    previous_close: float
+    change_value: float
+    change_percent: float
+    open: float
+    high: float
+    low: float
+    volume: float | None = None
+    amount: float | None = None
+    market_cap: float | None = None
+    pe_ratio: float | None = None
+    dividend_yield: float | None = None
+    valuation_date: date | None = None
 
 
 class MarketIndexSnapshotItemResponse(BaseModel):

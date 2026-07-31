@@ -189,6 +189,60 @@ class StubPandaAIClient:
         )
 
 
+class MoutaiPandaAIClient(StubPandaAIClient):
+    def get_cn_detail(self, symbol: str) -> PandaAICompanyProfile:
+        assert symbol == "600519.SH"
+        return PandaAICompanyProfile(
+            symbol="600519.SH",
+            company_name="Kweichow Moutai",
+            local_name="贵州茅台",
+            exchange_label="SSE",
+            listed_date=date(2001, 8, 27),
+            website=None,
+            business_sector="Consumer Staples",
+            economic_sector="Consumer Staples",
+            industry_group="MainBoard",
+            office_country="China / Guizhou",
+            status=1,
+        )
+
+    def get_cn_daily(
+        self,
+        symbol: str,
+        *,
+        start_date: date,
+        end_date: date,
+    ) -> list[PandaAIDailyBar]:
+        assert symbol == "600519.SH"
+        assert start_date <= end_date
+        return [
+            PandaAIDailyBar(
+                symbol="600519.SH",
+                trade_date=date(2026, 7, 28),
+                open=1480.0,
+                high=1502.0,
+                low=1475.0,
+                close=1495.0,
+                volume=2_100_000,
+                amount=3_130_000_000,
+            ),
+            PandaAIDailyBar(
+                symbol="600519.SH",
+                trade_date=date(2026, 7, 29),
+                open=1496.0,
+                high=1510.0,
+                low=1488.0,
+                close=1505.0,
+                volume=2_300_000,
+                amount=3_450_000_000,
+            ),
+        ]
+
+    def get_cn_rt_daily(self, symbol: str) -> PandaAIDailyBar | None:
+        assert symbol == "600519.SH"
+        return None
+
+
 class FailingPandaAIClient:
     def get_us_detail(self, symbol: str) -> PandaAICompanyProfile:
         raise PandaAIIntegrationError("network blocked")
@@ -364,3 +418,60 @@ def test_market_stock_service_returns_daily_bars_for_quant() -> None:
     assert bars[0].previous_close == 215.2
     assert bars[-1].close == 220.3
     assert bars[-1].volume == 67_000_000
+    assert bars[-1].amount == 13_700_000_000
+
+
+def test_market_stock_service_returns_lightweight_stock_snapshot() -> None:
+    service = MarketStockService(
+        StubPandaAIClient(),
+        symbols=TEST_MARKET_SYMBOLS,
+    )
+
+    snapshot = service.get_stock_snapshot("aapl")
+
+    assert snapshot.ticker == "AAPL"
+    assert snapshot.company_name == "Apple Inc."
+    assert snapshot.latest_trading_date == date(2026, 7, 28)
+    assert snapshot.latest_close == 220.3
+    assert snapshot.previous_close == 218.7
+    assert snapshot.change_value == 1.6
+    assert snapshot.change_percent == 0.73
+    assert snapshot.open == 218.7
+    assert snapshot.high == 221.4
+    assert snapshot.low == 217.9
+    assert snapshot.volume == 67_000_000
+    assert snapshot.amount == 13_700_000_000
+    assert snapshot.market_cap == 3_300_000_000_000
+    assert snapshot.pe_ratio == 31.245
+    assert snapshot.valuation_date == date(2026, 7, 28)
+
+
+def test_market_stock_snapshot_uses_existing_a_share_symbol_routing() -> None:
+    service = MarketStockService(MoutaiPandaAIClient())
+
+    snapshot = service.get_stock_snapshot("600519")
+
+    assert snapshot.ticker == "600519.SH"
+    assert snapshot.company_name == "Kweichow Moutai"
+    assert snapshot.exchange_label == "SSE"
+    assert snapshot.latest_trading_date == date(2026, 7, 29)
+    assert snapshot.latest_close == 1505.0
+    assert snapshot.open == 1496.0
+    assert snapshot.high == 1510.0
+    assert snapshot.low == 1488.0
+    assert snapshot.volume == 2_300_000
+    assert snapshot.amount == 3_450_000_000
+    assert snapshot.market_cap is None
+    assert snapshot.pe_ratio is None
+
+
+def test_market_stock_snapshot_keeps_sz_a_share_routing() -> None:
+    service = MarketStockService(StubPandaAIClient())
+
+    snapshot = service.get_stock_snapshot("000001")
+
+    assert snapshot.ticker == "000001.SZ"
+    assert snapshot.exchange_label == "SZSE"
+    assert snapshot.latest_trading_date == date(2026, 7, 29)
+    assert snapshot.amount == 1_310_000_000
+    assert snapshot.market_cap is None
