@@ -7,6 +7,7 @@ import json
 import logging
 import math
 import ssl
+import subprocess
 import sys
 import threading
 import time
@@ -329,14 +330,19 @@ class PandaAIClient:
 
         for attempt in range(1, retries + 1):
             try:
-                response = self._http_client.post(
+                status_code, response_headers, response_content = self._post_with_httpx(
                     self._build_login_url(),
-                    json=payload,
-                    headers=headers,
+                    payload,
+                    headers,
                     timeout=self._settings.pandaai_timeout_seconds,
                 )
-                response.raise_for_status()
-                parsed = response.json()
+                if status_code >= 400:
+                    raise PandaAIIntegrationError(
+                        f"PandaAI login returned HTTP {status_code}: "
+                        f"{_decode_text_preview(response_content)}"
+                    )
+
+                parsed = json.loads(response_content)
                 code = str(parsed.get("code", "200"))
                 if code != "200":
                     raise PandaAIIntegrationError(parsed.get("message") or "PandaAI login failed.")
@@ -517,13 +523,65 @@ class PandaAIClient:
         *,
         timeout: float,
     ) -> tuple[int, dict[str, str], bytes]:
-        response = self._http_client.post(
+        try:
+            response = self._http_client.post(
+                url,
+                json=payload,
+                headers=headers,
+                timeout=timeout,
+            )
+            return response.status_code, dict(response.headers.items()), response.content
+        except httpx.HTTPError as exc:
+            if not _should_try_curl_fallback(exc):
+                raise
+            return self._post_with_curl(url, payload, headers, timeout=timeout)
+
+    def _post_with_curl(
+        self,
+        url: str,
+        payload: dict[str, Any],
+        headers: dict[str, str],
+        *,
+        timeout: float,
+    ) -> tuple[int, dict[str, str], bytes]:
+        command = [
+            "curl.exe",
+            "-sS",
+            "-D",
+            "-",
+            "-X",
+            "POST",
             url,
-            json=payload,
-            headers=headers,
-            timeout=timeout,
-        )
-        return response.status_code, dict(response.headers.items()), response.content
+            "--max-time",
+            str(max(1, math.ceil(timeout))),
+            "--data-binary",
+            json.dumps(payload, ensure_ascii=False),
+        ]
+        if url.lower().startswith("https://") and not self._settings.pandaai_verify_ssl:
+            command.append("-k")
+
+        for key, value in headers.items():
+            if key.lower() == "accept-encoding":
+                continue
+            command.extend(["-H", f"{key}: {value}"])
+
+        try:
+            completed = subprocess.run(
+                command,
+                capture_output=True,
+                check=False,
+                timeout=max(2, math.ceil(timeout) + 2),
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise PandaAIIntegrationError(f"curl fallback failed: {exc}") from exc
+
+        if completed.returncode != 0:
+            stderr_text = _decode_text_preview(completed.stderr)
+            raise PandaAIIntegrationError(
+                f"curl fallback failed with exit code {completed.returncode}: {stderr_text}"
+            )
+
+        return _parse_curl_http_response(completed.stdout)
 
     def _open_json_request(
         self,
@@ -781,6 +839,62 @@ def _decode_parquet_records(payload: bytes) -> list[dict[str, Any]]:
         raise PandaAIIntegrationError(f"Failed to decode PandaAI parquet payload: {exc}") from exc
 
     return table.to_pylist()
+
+
+def _should_try_curl_fallback(exc: httpx.HTTPError) -> bool:
+    message = str(exc)
+    if "WinError 10013" in message:
+        return True
+
+    cause = exc.__cause__
+    while cause is not None:
+        if "WinError 10013" in str(cause):
+            return True
+        cause = getattr(cause, "__cause__", None)
+    return False
+
+
+def _parse_curl_http_response(raw_response: bytes) -> tuple[int, dict[str, str], bytes]:
+    payload = raw_response
+    while payload.startswith(b"HTTP/"):
+        header_block, separator, body = payload.partition(b"\r\n\r\n")
+        if not separator:
+            break
+
+        header_lines = header_block.split(b"\r\n")
+        status_line = header_lines[0].decode("iso-8859-1", errors="replace")
+        parts = status_line.split(" ", 2)
+        if len(parts) < 2 or not parts[1].isdigit():
+            raise PandaAIIntegrationError(f"Unable to parse curl status line: {status_line!r}")
+
+        status_code = int(parts[1])
+        if 100 <= status_code < 200:
+            payload = body
+            continue
+
+        headers: dict[str, str] = {}
+        for line in header_lines[1:]:
+            key, _, value = line.partition(b":")
+            if not _:
+                continue
+            headers[key.decode("iso-8859-1", errors="replace")] = value.decode(
+                "iso-8859-1",
+                errors="replace",
+            ).strip()
+        return status_code, headers, body
+
+    raise PandaAIIntegrationError("curl fallback returned an unparseable HTTP response.")
+
+
+def _decode_text_preview(payload: bytes) -> str:
+    if not payload:
+        return ""
+    for encoding in ("utf-8", "gb18030", "latin1"):
+        try:
+            return payload.decode(encoding).strip()
+        except UnicodeDecodeError:
+            continue
+    return repr(payload[:200])
 
 
 def get_pandaai_client(settings: Settings | None = None) -> PandaAIClient:
