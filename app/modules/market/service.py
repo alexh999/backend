@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 import logging
 import re
 from datetime import date
@@ -15,12 +16,16 @@ from app.integrations.pandaai.client import (
 from app.integrations.pandaai.schemas import (
     PandaAICompanyProfile,
     PandaAIDailyBar,
+    PandaAIIndexProfile,
     PandaAIValuationSnapshot,
 )
 from app.modules.market.schemas import (
     MarketChartCandleData,
     MarketChartPoint,
     MarketChartRangeData,
+    MarketIndexOverviewResponse,
+    MarketIndexSnapshotGroupResponse,
+    MarketIndexSnapshotItemResponse,
     MarketCompanyProfileData,
     MarketStockDetailResponse,
     MarketStockListItemResponse,
@@ -34,11 +39,49 @@ A_SHARE_WITH_SUFFIX_PATTERN = re.compile(r"^\d{6}\.(SH|SZ|BJ)$", re.IGNORECASE)
 A_SHARE_PLAIN_PATTERN = re.compile(r"^\d{6}$")
 DEFAULT_MARKET_SYMBOLS = (
     "AAPL",
+    "MSFT",
+    "NVDA",
+    "AMZN",
+    "TSLA",
     "000001.SZ",
+    "300750.SZ",
+    "601318.SH",
+    "000858.SZ",
     "600519.SH",
+    "601398.SH",
+    "600036.SH",
 )
 LIST_HISTORY_DAYS = 20
 DETAIL_HISTORY_DAYS = 400
+INDEX_LIST_HISTORY_DAYS = 30
+MARKET_PREVIEW_COUNT = 6
+
+
+@dataclass(frozen=True)
+class _MarketIndexGroupConfig:
+    id: str
+    title: str
+    symbols: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class _BuiltMarketIndexItem:
+    group_id: str
+    item: MarketIndexSnapshotItemResponse
+
+
+DEFAULT_MARKET_INDEX_GROUPS = (
+    _MarketIndexGroupConfig(
+        id="mainland-indexes",
+        title="Mainland Indexes",
+        symbols=("000001.SH", "399001.SZ", "000300.SH", "399006.SZ"),
+    ),
+    _MarketIndexGroupConfig(
+        id="core-a-share-indexes",
+        title="Core A-Share Indexes",
+        symbols=("000016.SH", "000905.SH", "000852.SH", "000688.SH"),
+    ),
+)
 
 
 class MarketStockService:
@@ -49,6 +92,64 @@ class MarketStockService:
     ) -> None:
         self._pandaai_client = pandaai_client
         self._symbols = symbols
+
+    def get_market_index_overview(self) -> MarketIndexOverviewResponse:
+        symbols = [
+            symbol
+            for group in DEFAULT_MARKET_INDEX_GROUPS
+            for symbol in group.symbols
+        ]
+        list_start_date = _recent_history_start_date(INDEX_LIST_HISTORY_DAYS)
+        try:
+            profiles = self._pandaai_client.get_cn_index_details(symbols)
+            histories = self._pandaai_client.get_cn_index_daily_batch(
+                symbols,
+                start_date=list_start_date,
+                end_date=date.today(),
+            )
+        except PandaAIIntegrationError as exc:
+            raise ApplicationError(
+                "Unable to load live market indexes.",
+                status_code=502,
+            ) from exc
+
+        items_by_group: dict[str, list[MarketIndexSnapshotItemResponse]] = {
+            group.id: [] for group in DEFAULT_MARKET_INDEX_GROUPS
+        }
+        for group in DEFAULT_MARKET_INDEX_GROUPS:
+            for symbol in group.symbols:
+                profile = profiles.get(symbol.upper())
+                history = histories.get(symbol.upper(), [])
+                built_item = self._build_market_index_item(
+                    group_id=group.id,
+                    symbol=symbol,
+                    profile=profile,
+                    history=history,
+                )
+                if built_item is not None:
+                    items_by_group[group.id].append(built_item.item)
+
+        groups: list[MarketIndexSnapshotGroupResponse] = []
+        for group in DEFAULT_MARKET_INDEX_GROUPS:
+            group_items = items_by_group[group.id]
+            if not group_items:
+                continue
+            groups.append(
+                MarketIndexSnapshotGroupResponse(
+                    id=group.id,
+                    title=group.title,
+                    items=group_items,
+                )
+            )
+
+        if not groups:
+            raise ApplicationError("Unable to load live market indexes.", status_code=502)
+
+        preview_items = [item for group in groups for item in group.items][:MARKET_PREVIEW_COUNT]
+        return MarketIndexOverviewResponse(
+            preview_items=preview_items,
+            groups=groups,
+        )
 
     def list_stocks(self) -> list[MarketStockListItemResponse]:
         max_workers = min(len(self._symbols), 6) or 1
@@ -109,6 +210,50 @@ class MarketStockService:
             change_percent=change_percent,
             reference_value=round(previous_bar.close, 2),
             sparkline_values=sparkline_values,
+        )
+
+    def _build_market_index_item(
+        self,
+        *,
+        group_id: str,
+        symbol: str,
+        profile: PandaAIIndexProfile | None,
+        history: list[PandaAIDailyBar],
+    ) -> _BuiltMarketIndexItem | None:
+        ticker = symbol.strip().upper()
+        if profile is None:
+            logger.warning("pandaai_index_skip symbol=%s error=missing_profile", ticker)
+            return None
+
+        if len(history) < 2:
+            return None
+
+        latest_bar = history[-1]
+        previous_bar = history[-2]
+        if previous_bar.close == 0:
+            change_percent = 0.0
+        else:
+            change_percent = round(
+                ((latest_bar.close - previous_bar.close) / previous_bar.close) * 100,
+                2,
+            )
+
+        sparkline_values = [round(bar.close, 2) for bar in history[-10:]]
+        if len(sparkline_values) < 2:
+            return None
+
+        return _BuiltMarketIndexItem(
+            group_id=group_id,
+            item=MarketIndexSnapshotItemResponse(
+                id=ticker.lower(),
+                symbol=ticker,
+                display_name=_index_display_name(profile),
+                value_text=f"{latest_bar.close:,.2f}",
+                latest_close=round(latest_bar.close, 2),
+                change_percent=change_percent,
+                reference_value=round(previous_bar.close, 2),
+                sparkline_values=sparkline_values,
+            ),
         )
 
     def get_stock_detail(self, symbol: str) -> MarketStockDetailResponse:
@@ -368,6 +513,10 @@ def _merge_latest_bar(history: list[PandaAIDailyBar], latest_bar: PandaAIDailyBa
     merged_history.append(latest_bar)
     merged_history.sort(key=lambda item: item.trade_date)
     return merged_history
+
+
+def _index_display_name(profile: PandaAIIndexProfile) -> str:
+    return profile.index_name.strip() or profile.symbol.upper()
 
 
 @lru_cache

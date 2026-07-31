@@ -55,6 +55,28 @@ class MarketStockListItemResponse(BaseModel):
     sparkline_values: list[float]
 
 
+class MarketIndexSnapshotItemResponse(BaseModel):
+    id: str
+    symbol: str
+    display_name: str
+    value_text: str
+    latest_close: float
+    change_percent: float
+    reference_value: float
+    sparkline_values: list[float]
+
+
+class MarketIndexSnapshotGroupResponse(BaseModel):
+    id: str
+    title: str
+    items: list[MarketIndexSnapshotItemResponse]
+
+
+class MarketIndexOverviewResponse(BaseModel):
+    preview_items: list[MarketIndexSnapshotItemResponse]
+    groups: list[MarketIndexSnapshotGroupResponse]
+
+
 class MarketStockDetailResponse(BaseModel):
     id: str
     ticker: str
