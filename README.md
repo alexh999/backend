@@ -5,13 +5,13 @@ Independent FastAPI backend project for the StockApp Flutter app.
 This repository is separate from:
 
 ```text
-D:\git_repo\stockapp-frontend
+D:\stockapp\flutter_stockapp
 ```
 
 The Flutter application lives at:
 
 ```text
-D:\git_repo\stockapp-frontend\flutter_stockapp
+D:\stockapp\flutter_stockapp
 ```
 
 ## Current Scope
@@ -64,14 +64,14 @@ This project was created with Python 3.12.13.
 Run these commands in Windows PowerShell:
 
 ```powershell
-Set-Location D:\git_repo\stockapp-backend
+Set-Location D:\stockapp\backend
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 ```
 
 If the virtual environment does not exist yet:
 
 ```powershell
-Set-Location D:\git_repo\stockapp-backend
+Set-Location D:\stockapp\backend
 C:\Users\Lenovo\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 ```
@@ -79,8 +79,21 @@ C:\Users\Lenovo\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\
 ## Run
 
 ```powershell
-Set-Location D:\git_repo\stockapp-backend
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+Set-Location D:\stockapp\backend
+.\start_backend.ps1
+```
+
+Double-click entry:
+
+```text
+D:\stockapp\backend\start_backend.bat
+```
+
+Manual command:
+
+```powershell
+Set-Location D:\stockapp\backend
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 Health endpoint:
@@ -89,7 +102,7 @@ Health endpoint:
 GET http://127.0.0.1:8000/api/v1/health
 ```
 
-Android emulator example for future frontend integration:
+Android emulator example:
 
 ```text
 GET http://10.0.2.2:8000/api/v1/health
@@ -98,7 +111,7 @@ GET http://10.0.2.2:8000/api/v1/health
 ## Test
 
 ```powershell
-Set-Location D:\git_repo\stockapp-backend
+Set-Location D:\stockapp\backend
 .\.venv\Scripts\python.exe -m pytest
 ```
 

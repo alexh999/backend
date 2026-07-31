@@ -7,6 +7,7 @@ import json
 import logging
 import math
 import ssl
+import subprocess
 import sys
 import threading
 import time
@@ -28,6 +29,8 @@ from app.core.config import Settings, get_settings
 from app.integrations.pandaai.schemas import (
     PandaAICompanyProfile,
     PandaAIDailyBar,
+    PandaAIIndexDetailRecord,
+    PandaAIIndexProfile,
     PandaAIMktFinMetricRecord,
     PandaAIStockDetailRecord,
     PandaAIUsDailyRecord,
@@ -46,6 +49,8 @@ US_MKTFIN_ENDPOINT = "/stock/getStockMktfinMetric"
 CN_DETAIL_ENDPOINT = "/multi/getStockDetail"
 CN_DAILY_ENDPOINT = "/multi/getStockDaily"
 CN_RT_DAILY_ENDPOINT = "/multi/getStockRtDaily"
+CN_INDEX_DETAIL_ENDPOINT = "/index/getIndexSymbolData"
+CN_INDEX_DAILY_ENDPOINT = "/multi/getIndexDaily"
 TOKEN_EXPIRED_CODES = {"200002", "200004"}
 
 
@@ -216,6 +221,147 @@ class PandaAIClient:
         self._set_cached(cache_key, latest_bar)
         return latest_bar
 
+    def get_cn_index_detail(self, symbol: str) -> PandaAIIndexProfile:
+        normalized_symbol = symbol.upper()
+        cache_key = f"cn-index-detail:{normalized_symbol}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
+        payload = {
+            "symbol": [normalized_symbol],
+            "status": 1,
+        }
+        raw_items = self._post_data(CN_INDEX_DETAIL_ENDPOINT, payload)
+        records = self._coerce_records(raw_items, PandaAIIndexDetailRecord)
+        if not records:
+            payload = {"symbol": [normalized_symbol]}
+            raw_items = self._post_data(CN_INDEX_DETAIL_ENDPOINT, payload)
+            records = self._coerce_records(raw_items, PandaAIIndexDetailRecord)
+        if not records:
+            raise PandaAIIntegrationError(f"PandaAI returned no index profile for {normalized_symbol}.")
+
+        profile = self._map_index_profile(records[0])
+        self._set_cached(cache_key, profile)
+        return profile
+
+    def get_cn_index_details(self, symbols: list[str]) -> dict[str, PandaAIIndexProfile]:
+        normalized_symbols = [symbol.upper() for symbol in symbols if symbol.strip()]
+        if not normalized_symbols:
+            return {}
+
+        result: dict[str, PandaAIIndexProfile] = {}
+        missing_symbols: list[str] = []
+        for symbol in normalized_symbols:
+            cache_key = f"cn-index-detail:{symbol}"
+            cached = self._get_cached(cache_key)
+            if cached is not None:
+                result[symbol] = cached
+            else:
+                missing_symbols.append(symbol)
+
+        if missing_symbols:
+            payload = {
+                "symbol": missing_symbols,
+                "status": 1,
+            }
+            raw_items = self._post_data(CN_INDEX_DETAIL_ENDPOINT, payload)
+            records = self._coerce_records(raw_items, PandaAIIndexDetailRecord)
+            if not records:
+                payload = {"symbol": missing_symbols}
+                raw_items = self._post_data(CN_INDEX_DETAIL_ENDPOINT, payload)
+                records = self._coerce_records(raw_items, PandaAIIndexDetailRecord)
+
+            for record in records:
+                profile = self._map_index_profile(record)
+                cache_key = f"cn-index-detail:{profile.symbol}"
+                self._set_cached(cache_key, profile)
+                result[profile.symbol] = profile
+
+        return result
+
+    def get_cn_index_daily(
+        self,
+        symbol: str,
+        *,
+        start_date: date,
+        end_date: date,
+    ) -> list[PandaAIDailyBar]:
+        normalized_symbol = symbol.upper()
+        cache_key = f"cn-index-daily:{normalized_symbol}:{start_date.isoformat()}:{end_date.isoformat()}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
+        payload = {
+            "symbols": [normalized_symbol],
+            "startDate": start_date.strftime("%Y%m%d"),
+            "endDate": end_date.strftime("%Y%m%d"),
+        }
+        raw_items = self._post_data(CN_INDEX_DAILY_ENDPOINT, payload)
+        records = self._coerce_records(raw_items, PandaAIUsDailyRecord)
+        daily_bars = [
+            self._map_daily_bar(record)
+            for record in records
+            if record.close is not None
+            and record.open is not None
+            and record.high is not None
+            and record.low is not None
+        ]
+        daily_bars.sort(key=lambda item: item.trade_date)
+        self._set_cached(cache_key, daily_bars)
+        return daily_bars
+
+    def get_cn_index_daily_batch(
+        self,
+        symbols: list[str],
+        *,
+        start_date: date,
+        end_date: date,
+    ) -> dict[str, list[PandaAIDailyBar]]:
+        normalized_symbols = [symbol.upper() for symbol in symbols if symbol.strip()]
+        if not normalized_symbols:
+            return {}
+
+        result: dict[str, list[PandaAIDailyBar]] = {}
+        missing_symbols: list[str] = []
+        for symbol in normalized_symbols:
+            cache_key = f"cn-index-daily:{symbol}:{start_date.isoformat()}:{end_date.isoformat()}"
+            cached = self._get_cached(cache_key)
+            if cached is not None:
+                result[symbol] = cached
+            else:
+                missing_symbols.append(symbol)
+
+        if missing_symbols:
+            payload = {
+                "symbols": missing_symbols,
+                "startDate": start_date.strftime("%Y%m%d"),
+                "endDate": end_date.strftime("%Y%m%d"),
+            }
+            raw_items = self._post_data(CN_INDEX_DAILY_ENDPOINT, payload)
+            records = self._coerce_records(raw_items, PandaAIUsDailyRecord)
+            grouped_records: dict[str, list[PandaAIDailyBar]] = {symbol: [] for symbol in missing_symbols}
+            for record in records:
+                if (
+                    record.close is None
+                    or record.open is None
+                    or record.high is None
+                    or record.low is None
+                ):
+                    continue
+                daily_bar = self._map_daily_bar(record)
+                grouped_records.setdefault(daily_bar.symbol, []).append(daily_bar)
+
+            for symbol in missing_symbols:
+                daily_bars = grouped_records.get(symbol, [])
+                daily_bars.sort(key=lambda item: item.trade_date)
+                cache_key = f"cn-index-daily:{symbol}:{start_date.isoformat()}:{end_date.isoformat()}"
+                self._set_cached(cache_key, daily_bars)
+                result[symbol] = daily_bars
+
+        return result
+
     def _ensure_vendor_sdk_ready(self) -> Any:
         sdk = self._get_vendor_sdk()
         now = time.time()
@@ -329,14 +475,19 @@ class PandaAIClient:
 
         for attempt in range(1, retries + 1):
             try:
-                response = self._http_client.post(
+                status_code, response_headers, response_content = self._post_with_httpx(
                     self._build_login_url(),
-                    json=payload,
-                    headers=headers,
+                    payload,
+                    headers,
                     timeout=self._settings.pandaai_timeout_seconds,
                 )
-                response.raise_for_status()
-                parsed = response.json()
+                if status_code >= 400:
+                    raise PandaAIIntegrationError(
+                        f"PandaAI login returned HTTP {status_code}: "
+                        f"{_decode_text_preview(response_content)}"
+                    )
+
+                parsed = json.loads(response_content)
                 code = str(parsed.get("code", "200"))
                 if code != "200":
                     raise PandaAIIntegrationError(parsed.get("message") or "PandaAI login failed.")
@@ -517,13 +668,65 @@ class PandaAIClient:
         *,
         timeout: float,
     ) -> tuple[int, dict[str, str], bytes]:
-        response = self._http_client.post(
+        try:
+            response = self._http_client.post(
+                url,
+                json=payload,
+                headers=headers,
+                timeout=timeout,
+            )
+            return response.status_code, dict(response.headers.items()), response.content
+        except httpx.HTTPError as exc:
+            if not _should_try_curl_fallback(exc):
+                raise
+            return self._post_with_curl(url, payload, headers, timeout=timeout)
+
+    def _post_with_curl(
+        self,
+        url: str,
+        payload: dict[str, Any],
+        headers: dict[str, str],
+        *,
+        timeout: float,
+    ) -> tuple[int, dict[str, str], bytes]:
+        command = [
+            "curl.exe",
+            "-sS",
+            "-D",
+            "-",
+            "-X",
+            "POST",
             url,
-            json=payload,
-            headers=headers,
-            timeout=timeout,
-        )
-        return response.status_code, dict(response.headers.items()), response.content
+            "--max-time",
+            str(max(1, math.ceil(timeout))),
+            "--data-binary",
+            json.dumps(payload, ensure_ascii=False),
+        ]
+        if url.lower().startswith("https://") and not self._settings.pandaai_verify_ssl:
+            command.append("-k")
+
+        for key, value in headers.items():
+            if key.lower() == "accept-encoding":
+                continue
+            command.extend(["-H", f"{key}: {value}"])
+
+        try:
+            completed = subprocess.run(
+                command,
+                capture_output=True,
+                check=False,
+                timeout=max(2, math.ceil(timeout) + 2),
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise PandaAIIntegrationError(f"curl fallback failed: {exc}") from exc
+
+        if completed.returncode != 0:
+            stderr_text = _decode_text_preview(completed.stderr)
+            raise PandaAIIntegrationError(
+                f"curl fallback failed with exit code {completed.returncode}: {stderr_text}"
+            )
+
+        return _parse_curl_http_response(completed.stdout)
 
     def _open_json_request(
         self,
@@ -647,6 +850,21 @@ class PandaAIClient:
             industry_group=board_type,
             office_country=office_country,
             status=record.status,
+        )
+
+    def _map_index_profile(self, record: PandaAIIndexDetailRecord) -> PandaAIIndexProfile:
+        index_name = (
+            record.first_non_null("name", "index_name", "display_name", "full_name")
+            or record.symbol.upper()
+        )
+        return PandaAIIndexProfile(
+            symbol=record.symbol.upper(),
+            index_name=str(index_name),
+            exchange_label=_exchange_label_from_symbol(record.symbol) or record.exchange,
+            listed_date=_parse_optional_date(record.listed_date),
+            status=record.status,
+            publisher=record.publisher,
+            category=record.category,
         )
 
     def _map_daily_bar(self, record: PandaAIUsDailyRecord) -> PandaAIDailyBar:
@@ -781,6 +999,62 @@ def _decode_parquet_records(payload: bytes) -> list[dict[str, Any]]:
         raise PandaAIIntegrationError(f"Failed to decode PandaAI parquet payload: {exc}") from exc
 
     return table.to_pylist()
+
+
+def _should_try_curl_fallback(exc: httpx.HTTPError) -> bool:
+    message = str(exc)
+    if "WinError 10013" in message:
+        return True
+
+    cause = exc.__cause__
+    while cause is not None:
+        if "WinError 10013" in str(cause):
+            return True
+        cause = getattr(cause, "__cause__", None)
+    return False
+
+
+def _parse_curl_http_response(raw_response: bytes) -> tuple[int, dict[str, str], bytes]:
+    payload = raw_response
+    while payload.startswith(b"HTTP/"):
+        header_block, separator, body = payload.partition(b"\r\n\r\n")
+        if not separator:
+            break
+
+        header_lines = header_block.split(b"\r\n")
+        status_line = header_lines[0].decode("iso-8859-1", errors="replace")
+        parts = status_line.split(" ", 2)
+        if len(parts) < 2 or not parts[1].isdigit():
+            raise PandaAIIntegrationError(f"Unable to parse curl status line: {status_line!r}")
+
+        status_code = int(parts[1])
+        if 100 <= status_code < 200:
+            payload = body
+            continue
+
+        headers: dict[str, str] = {}
+        for line in header_lines[1:]:
+            key, _, value = line.partition(b":")
+            if not _:
+                continue
+            headers[key.decode("iso-8859-1", errors="replace")] = value.decode(
+                "iso-8859-1",
+                errors="replace",
+            ).strip()
+        return status_code, headers, body
+
+    raise PandaAIIntegrationError("curl fallback returned an unparseable HTTP response.")
+
+
+def _decode_text_preview(payload: bytes) -> str:
+    if not payload:
+        return ""
+    for encoding in ("utf-8", "gb18030", "latin1"):
+        try:
+            return payload.decode(encoding).strip()
+        except UnicodeDecodeError:
+            continue
+    return repr(payload[:200])
 
 
 def get_pandaai_client(settings: Settings | None = None) -> PandaAIClient:
