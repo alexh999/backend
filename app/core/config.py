@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     siliconflow_model: str = Field(min_length=1)
     siliconflow_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
     siliconflow_max_tokens: int = Field(default=512, ge=1, le=4096)
+    newsapi_api_key: SecretStr | None = None
+    newsapi_base_url: str = "https://newsapi.org/v2"
+    newsapi_timeout_seconds: float = Field(default=15.0, gt=0, le=120)
+    newsapi_default_language: str = Field(default="en", min_length=2, max_length=8)
+    newsapi_default_page_size: int = Field(default=20, ge=1, le=100)
 
     model_config = SettingsConfigDict(
         env_file=".env",
