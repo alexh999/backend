@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     siliconflow_model: str = Field(min_length=1)
     siliconflow_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
     siliconflow_max_tokens: int = Field(default=512, ge=1, le=4096)
+    jwt_secret: SecretStr | None = None
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = Field(default=30, gt=0, le=1440)
+    database_url: str = "sqlite:///./stockapp_backend.db"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -47,6 +51,22 @@ class Settings(BaseSettings):
         value = value.strip()
         if not value:
             raise ValueError("SILICONFLOW_MODEL must not be blank")
+        return value
+
+    @field_validator("jwt_algorithm")
+    @classmethod
+    def validate_jwt_algorithm(cls, value: str) -> str:
+        value = value.strip().upper()
+        if value not in {"HS256", "HS384", "HS512"}:
+            raise ValueError("JWT_ALGORITHM must be HS256, HS384, or HS512")
+        return value
+
+    @field_validator("database_url")
+    @classmethod
+    def strip_database_url(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("DATABASE_URL must not be blank")
         return value
 
 

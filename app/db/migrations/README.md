@@ -1,5 +1,11 @@
 # Database Migrations
 
-This directory is reserved for future Alembic migrations.
+The repository uses Alembic for schema migrations.
 
-Phase 1 does not initialize Alembic, create database connections, or define database tables.
+Run from the backend root:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic upgrade head
+```
+
+The first migration creates the shared `users` table.
