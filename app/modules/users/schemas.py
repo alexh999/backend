@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from app.modules.users.models import UserRole, UserStatus
 
@@ -17,5 +17,7 @@ class UserResponse(BaseModel):
 
 
 class UserCreateRequest(BaseModel):
-    username: str = Field(min_length=1, max_length=64)
-    password: str = Field(min_length=8, max_length=128)
+    model_config = ConfigDict(extra="forbid")
+
+    username: str
+    password: str

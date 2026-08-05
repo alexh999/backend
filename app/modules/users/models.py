@@ -9,6 +9,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
 
+USERNAME_MAX_LENGTH = 64
+
+
 class UserRole(StrEnum):
     USER = "user"
     ADMIN = "admin"
@@ -28,7 +31,7 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(
-        String(64),
+        String(USERNAME_MAX_LENGTH),
         unique=True,
         index=True,
         nullable=False,
