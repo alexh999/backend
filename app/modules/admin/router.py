@@ -10,9 +10,11 @@ from app.modules.admin.schemas import (
     AdminUserStatusUpdateRequest,
 )
 from app.modules.admin.service import (
+    create_admin_user,
+    calculate_total_pages,
     SelfDisableError,
     UserNotFoundError,
-    calculate_total_pages,
+    UserServiceError,
     get_user_detail,
     get_user_statistics,
     list_users,
@@ -20,7 +22,8 @@ from app.modules.admin.service import (
 )
 from app.modules.auth.dependencies import require_admin
 from app.modules.users.models import User, UserRole, UserStatus
-from app.modules.users.schemas import UserResponse
+from app.modules.users.schemas import UserCreateRequest, UserResponse
+from app.modules.users.service import UserAlreadyExistsError
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -61,6 +64,31 @@ def read_admin_users(
         page=page,
         page_size=page_size,
     )
+
+
+@router.post("/users/admins", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def create_admin_account(
+    request: UserCreateRequest,
+    _: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> UserResponse:
+    try:
+        user = create_admin_user(
+            db,
+            username=request.username,
+            password=request.password,
+        )
+    except UserAlreadyExistsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+    except UserServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+    return UserResponse.model_validate(user)
 
 
 @router.get("/users/{user_id}", response_model=UserResponse)

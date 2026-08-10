@@ -294,6 +294,205 @@ def test_admin_can_disable_and_reenable_user(admin_context) -> None:
     assert enabled.json()["status"] == "active"
 
 
+def test_admin_can_create_another_admin_and_login(admin_context) -> None:
+    client, session_factory, settings = admin_context
+    admin = _create_user(session_factory, username="admin", role=UserRole.ADMIN)
+    headers = _authorization(admin, settings)
+
+    response = client.post(
+        "/api/v1/admin/users/admins",
+        json={"username": "new-admin", "password": "secure-password"},
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["username"] == "new-admin"
+    assert payload["role"] == "admin"
+    assert payload["status"] == "active"
+    assert "password_hash" not in payload
+
+    with session_factory() as db:
+        stored_user = db.get(User, payload["id"])
+        assert stored_user is not None
+        assert stored_user.role == UserRole.ADMIN
+        assert stored_user.status == UserStatus.ACTIVE
+        assert stored_user.password_hash != "secure-password"
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={"username": "new-admin", "password": "secure-password"},
+    )
+    assert login_response.status_code == 200
+    token_response = login_response.json()
+    assert token_response["token_type"] == "bearer"
+
+    me_response = client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {token_response['access_token']}"},
+    )
+    assert me_response.status_code == 200
+    assert me_response.json()["username"] == "new-admin"
+    assert me_response.json()["role"] == "admin"
+
+
+def test_admin_create_admin_validates_permissions_and_payload(admin_context) -> None:
+    client, session_factory, settings = admin_context
+    admin = _create_user(session_factory, username="admin", role=UserRole.ADMIN)
+    regular = _create_user(session_factory, username="regular")
+    disabled_admin = _create_user(
+        session_factory,
+        username="disabled-admin",
+        role=UserRole.ADMIN,
+        status=UserStatus.DISABLED,
+    )
+
+    assert client.post("/api/v1/admin/users/admins").status_code == 401
+    assert client.post(
+        "/api/v1/admin/users/admins",
+        json={"username": "new-admin", "password": "secure-password"},
+        headers=_authorization(regular, settings),
+    ).status_code == 403
+    assert client.post(
+        "/api/v1/admin/users/admins",
+        json={"username": "new-admin", "password": "secure-password"},
+        headers=_authorization(disabled_admin, settings),
+    ).status_code == 401
+
+    assert client.post(
+        "/api/v1/admin/users/admins",
+        json={"username": " ", "password": "secure-password"},
+        headers=_authorization(admin, settings),
+    ).status_code == 422
+    assert client.post(
+        "/api/v1/admin/users/admins",
+        json={"username": "new-admin-2", "password": "short"},
+        headers=_authorization(admin, settings),
+    ).status_code == 422
+    assert client.post(
+        "/api/v1/admin/users/admins",
+        json={"username": "new-admin-3", "password": "secure-password", "role": "user"},
+        headers=_authorization(admin, settings),
+    ).status_code == 422
+
+
+def test_admin_create_admin_rejects_duplicate_username(admin_context) -> None:
+    client, session_factory, settings = admin_context
+    admin = _create_user(session_factory, username="admin", role=UserRole.ADMIN)
+    _create_user(session_factory, username="existing-admin", role=UserRole.ADMIN)
+
+    response = client.post(
+        "/api/v1/admin/users/admins",
+        json={"username": "existing-admin", "password": "secure-password"},
+        headers=_authorization(admin, settings),
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Username already exists."
+
+
+def test_admin_can_create_another_admin_and_login(admin_context) -> None:
+    client, session_factory, settings = admin_context
+    admin = _create_user(session_factory, username="admin", role=UserRole.ADMIN)
+    headers = _authorization(admin, settings)
+
+    response = client.post(
+        "/api/v1/admin/users/admins",
+        json={"username": "new-admin", "password": "secure-password"},
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["username"] == "new-admin"
+    assert payload["role"] == "admin"
+    assert payload["status"] == "active"
+    assert "password_hash" not in payload
+
+    with session_factory() as db:
+        stored_user = db.get(User, payload["id"])
+        assert stored_user is not None
+        assert stored_user.role == UserRole.ADMIN
+        assert stored_user.status == UserStatus.ACTIVE
+        assert stored_user.password_hash != "secure-password"
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={"username": "new-admin", "password": "secure-password"},
+    )
+    assert login_response.status_code == 200
+    token_response = login_response.json()
+    assert token_response["token_type"] == "bearer"
+
+    me_response = client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {token_response['access_token']}"},
+    )
+    assert me_response.status_code == 200
+    assert me_response.json()["username"] == "new-admin"
+    assert me_response.json()["role"] == "admin"
+
+
+def test_admin_create_admin_validates_permissions_and_payload(admin_context) -> None:
+    client, session_factory, settings = admin_context
+    admin = _create_user(session_factory, username="admin", role=UserRole.ADMIN)
+    regular = _create_user(session_factory, username="regular")
+    disabled_admin = _create_user(
+        session_factory,
+        username="disabled-admin",
+        role=UserRole.ADMIN,
+        status=UserStatus.DISABLED,
+    )
+
+    assert client.post("/api/v1/admin/users/admins").status_code == 401
+    assert client.post(
+        "/api/v1/admin/users/admins",
+        json={"username": "new-admin", "password": "secure-password"},
+        headers=_authorization(regular, settings),
+    ).status_code == 403
+    assert client.post(
+        "/api/v1/admin/users/admins",
+        json={"username": "new-admin", "password": "secure-password"},
+        headers=_authorization(disabled_admin, settings),
+    ).status_code == 401
+
+    response = client.post(
+        "/api/v1/admin/users/admins",
+        json={"username": " ", "password": "secure-password"},
+        headers=_authorization(admin, settings),
+    )
+    assert response.status_code == 422
+
+    response = client.post(
+        "/api/v1/admin/users/admins",
+        json={"username": "new-admin-2", "password": "short"},
+        headers=_authorization(admin, settings),
+    )
+    assert response.status_code == 422
+
+    response = client.post(
+        "/api/v1/admin/users/admins",
+        json={"username": "new-admin-3", "password": "secure-password", "role": "user"},
+        headers=_authorization(admin, settings),
+    )
+    assert response.status_code == 422
+
+
+def test_admin_create_admin_rejects_duplicate_username(admin_context) -> None:
+    client, session_factory, settings = admin_context
+    admin = _create_user(session_factory, username="admin", role=UserRole.ADMIN)
+    _create_user(session_factory, username="existing-admin", role=UserRole.ADMIN)
+
+    response = client.post(
+        "/api/v1/admin/users/admins",
+        json={"username": "existing-admin", "password": "secure-password"},
+        headers=_authorization(admin, settings),
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Username already exists."
+
+
 def test_user_status_endpoints_enforce_admin_and_not_found(admin_context) -> None:
     client, session_factory, settings = admin_context
     admin = _create_user(session_factory, username="admin", role=UserRole.ADMIN)

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.admin.schemas import UserStatistics
 from app.modules.users.models import User, UserRole, UserStatus, utc_now
-from app.modules.users.service import UserServiceError
+from app.modules.users.service import UserServiceError, create_user
 
 
 @dataclass(frozen=True)
@@ -24,6 +24,21 @@ class UserNotFoundError(UserServiceError):
 
 class SelfDisableError(UserServiceError):
     pass
+
+
+def create_admin_user(
+    db: Session,
+    *,
+    username: str,
+    password: str,
+) -> User:
+    return create_user(
+        db,
+        username=username,
+        password=password,
+        role=UserRole.ADMIN,
+        status=UserStatus.ACTIVE,
+    )
 
 
 def get_user_statistics(db: Session) -> UserStatistics:
