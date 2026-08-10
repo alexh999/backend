@@ -5,7 +5,7 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import Settings, get_settings
@@ -13,6 +13,7 @@ from app.core.security import create_access_token
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import create_app
+from app.modules.admin.models import AdminAuditAction, AdminAuditLog
 from app.modules.users.models import User, UserRole, UserStatus
 from app.modules.users.service import create_user
 
@@ -78,6 +79,11 @@ def _create_user(
 def _authorization(user: User, settings: Settings) -> dict[str, str]:
     token = create_access_token(user.id, settings)
     return {"Authorization": f"Bearer {token}"}
+
+
+def _audit_log_count(session_factory: sessionmaker[Session]) -> int:
+    with session_factory() as db:
+        return int(db.scalar(select(func.count(AdminAuditLog.id))) or 0)
 
 
 def test_admin_overview_returns_real_user_statistics(admin_context) -> None:
@@ -549,3 +555,187 @@ def test_disabled_user_cannot_login_or_use_old_token(admin_context) -> None:
     assert login_response.json()["code"] == "ACCOUNT_DISABLED"
     assert client.get("/api/v1/auth/me", headers=user_headers).status_code == 401
     assert client.get("/api/v1/admin/overview", headers=user_headers).status_code == 401
+
+
+def test_admin_creation_and_status_changes_create_audit_logs(admin_context) -> None:
+    client, session_factory, settings = admin_context
+    admin = _create_user(session_factory, username="audit-admin", role=UserRole.ADMIN)
+    user = _create_user(session_factory, username="audit-target")
+    headers = _authorization(admin, settings)
+
+    created_admin = client.post(
+        "/api/v1/admin/users/admins",
+        json={"username": "created-admin", "password": "secure-password"},
+        headers=headers,
+    )
+    disabled = client.patch(
+        f"/api/v1/admin/users/{user.id}/status",
+        json={"is_active": False},
+        headers=headers,
+    )
+    enabled = client.patch(
+        f"/api/v1/admin/users/{user.id}/status",
+        json={"is_active": True},
+        headers=headers,
+    )
+
+    assert created_admin.status_code == 201
+    assert disabled.status_code == 200
+    assert enabled.status_code == 200
+    with session_factory() as db:
+        logs = list(db.scalars(select(AdminAuditLog).order_by(AdminAuditLog.id)))
+
+    assert [log.action for log in logs] == [
+        AdminAuditAction.ADMIN_CREATED,
+        AdminAuditAction.USER_DISABLED,
+        AdminAuditAction.USER_ENABLED,
+    ]
+    assert all(log.actor_user_id == admin.id and log.actor_username == "audit-admin" for log in logs)
+    assert logs[0].target_username == "created-admin"
+    assert logs[1].target_user_id == user.id
+    assert logs[1].target_username == "audit-target"
+    assert logs[1].metadata_ == {"previous_status": "active", "new_status": "disabled"}
+    assert logs[2].metadata_ == {"previous_status": "disabled", "new_status": "active"}
+
+
+def test_failed_or_rejected_admin_operations_do_not_create_audit_logs(admin_context) -> None:
+    client, session_factory, settings = admin_context
+    admin = _create_user(session_factory, username="admin", role=UserRole.ADMIN)
+    regular = _create_user(session_factory, username="regular")
+    headers = _authorization(admin, settings)
+
+    duplicate = client.post(
+        "/api/v1/admin/users/admins",
+        json={"username": "regular", "password": "secure-password"},
+        headers=headers,
+    )
+    missing_user = client.patch(
+        "/api/v1/admin/users/999/status",
+        json={"is_active": False},
+        headers=headers,
+    )
+    self_disable = client.patch(
+        f"/api/v1/admin/users/{admin.id}/status",
+        json={"is_active": False},
+        headers=headers,
+    )
+    forbidden = client.patch(
+        f"/api/v1/admin/users/{regular.id}/status",
+        json={"is_active": False},
+        headers=_authorization(regular, settings),
+    )
+
+    assert duplicate.status_code == 409
+    assert missing_user.status_code == 404
+    assert self_disable.status_code == 400
+    assert forbidden.status_code == 403
+    assert _audit_log_count(session_factory) == 0
+
+
+def test_admin_audit_logs_are_paginated_sorted_filtered_and_safe(admin_context) -> None:
+    client, session_factory, settings = admin_context
+    admin = _create_user(session_factory, username="root-admin", role=UserRole.ADMIN)
+    target = _create_user(session_factory, username="mixed-target")
+    headers = _authorization(admin, settings)
+
+    assert client.post(
+        "/api/v1/admin/users/admins",
+        json={"username": "created-admin", "password": "secure-password"},
+        headers=headers,
+    ).status_code == 201
+    assert client.patch(
+        f"/api/v1/admin/users/{target.id}/status",
+        json={"is_active": False},
+        headers=headers,
+    ).status_code == 200
+    assert client.patch(
+        f"/api/v1/admin/users/{target.id}/status",
+        json={"is_active": True},
+        headers=headers,
+    ).status_code == 200
+
+    first_page = client.get(
+        "/api/v1/admin/audit-logs?page=1&page_size=2",
+        headers=headers,
+    )
+    assert first_page.status_code == 200
+    payload = first_page.json()
+    assert payload["total"] == 3
+    assert payload["total_pages"] == 2
+    assert payload["page"] == 1
+    assert payload["page_size"] == 2
+    assert [item["action"] for item in payload["items"]] == ["USER_ENABLED", "USER_DISABLED"]
+    for item in payload["items"]:
+        assert "metadata" in item
+        assert not any("password" in field.lower() or "token" in field.lower() for field in item)
+
+    second_page = client.get(
+        "/api/v1/admin/audit-logs?page=2&page_size=2",
+        headers=headers,
+    )
+    assert second_page.status_code == 200
+    assert [item["action"] for item in second_page.json()["items"]] == ["ADMIN_CREATED"]
+
+    disabled_logs = client.get(
+        "/api/v1/admin/audit-logs?action=USER_DISABLED",
+        headers=headers,
+    )
+    actor_logs = client.get(
+        "/api/v1/admin/audit-logs?actor_username=%20ROOT%20",
+        headers=headers,
+    )
+    target_logs = client.get(
+        "/api/v1/admin/audit-logs?target_username=%20MIXED%20",
+        headers=headers,
+    )
+    combined = client.get(
+        "/api/v1/admin/audit-logs?action=USER_ENABLED&actor_username=root&target_username=target",
+        headers=headers,
+    )
+
+    assert disabled_logs.status_code == 200
+    assert [item["action"] for item in disabled_logs.json()["items"]] == ["USER_DISABLED"]
+    assert actor_logs.status_code == 200
+    assert actor_logs.json()["total"] == 3
+    assert target_logs.status_code == 200
+    assert target_logs.json()["total"] == 2
+    assert combined.status_code == 200
+    assert combined.json()["total"] == 1
+    assert combined.json()["items"][0]["metadata"] == {
+        "previous_status": "disabled",
+        "new_status": "active",
+    }
+
+
+@pytest.mark.parametrize("query", ["page=0", "page_size=101", "action=PASSWORD_CHANGED"])
+def test_admin_audit_logs_reject_invalid_query_parameters(admin_context, query: str) -> None:
+    client, session_factory, settings = admin_context
+    admin = _create_user(session_factory, username="admin", role=UserRole.ADMIN)
+
+    response = client.get(
+        f"/api/v1/admin/audit-logs?{query}",
+        headers=_authorization(admin, settings),
+    )
+
+    assert response.status_code == 422
+
+
+def test_admin_audit_logs_reject_missing_regular_and_disabled_admin(admin_context) -> None:
+    client, session_factory, settings = admin_context
+    regular = _create_user(session_factory, username="regular")
+    disabled_admin = _create_user(
+        session_factory,
+        username="disabled-admin",
+        role=UserRole.ADMIN,
+        status=UserStatus.DISABLED,
+    )
+
+    assert client.get("/api/v1/admin/audit-logs").status_code == 401
+    assert client.get(
+        "/api/v1/admin/audit-logs",
+        headers=_authorization(regular, settings),
+    ).status_code == 403
+    assert client.get(
+        "/api/v1/admin/audit-logs",
+        headers=_authorization(disabled_admin, settings),
+    ).status_code == 401

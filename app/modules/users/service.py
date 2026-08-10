@@ -63,6 +63,7 @@ def create_user(
     password: str,
     role: UserRole = UserRole.USER,
     status: UserStatus = UserStatus.ACTIVE,
+    commit: bool = True,
 ) -> User:
     normalized_username = normalize_username(username)
     validated_password = validate_password(password)
@@ -77,11 +78,14 @@ def create_user(
     )
     db.add(user)
     try:
-        db.commit()
+        db.flush()
+        if commit:
+            db.commit()
     except IntegrityError as exc:
         db.rollback()
         raise UserAlreadyExistsError("Username already exists.") from exc
-    db.refresh(user)
+    if commit:
+        db.refresh(user)
     return user
 
 

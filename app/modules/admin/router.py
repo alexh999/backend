@@ -4,7 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.modules.admin.models import AdminAuditAction
 from app.modules.admin.schemas import (
+    AdminAuditLogListResponse,
     AdminOverviewResponse,
     AdminUserListResponse,
     AdminUserStatusUpdateRequest,
@@ -17,6 +19,7 @@ from app.modules.admin.service import (
     UserServiceError,
     get_user_detail,
     get_user_statistics,
+    list_audit_logs,
     list_users,
     update_user_status,
 )
@@ -69,12 +72,13 @@ def read_admin_users(
 @router.post("/users/admins", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_admin_account(
     request: UserCreateRequest,
-    _: Annotated[User, Depends(require_admin)],
+    current_admin: Annotated[User, Depends(require_admin)],
     db: Annotated[Session, Depends(get_db)],
 ) -> UserResponse:
     try:
         user = create_admin_user(
             db,
+            actor=current_admin,
             username=request.username,
             password=request.password,
         )
@@ -114,7 +118,7 @@ def update_admin_user_status(
         user = update_user_status(
             db,
             user_id=user_id,
-            actor_id=current_admin.id,
+            actor=current_admin,
             is_active=request.is_active,
         )
     except UserNotFoundError as exc:
@@ -128,3 +132,34 @@ def update_admin_user_status(
             detail=str(exc),
         ) from exc
     return UserResponse.model_validate(user)
+
+
+@router.get(
+    "/audit-logs",
+    response_model=AdminAuditLogListResponse,
+    response_model_by_alias=False,
+)
+def read_admin_audit_logs(
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[User, Depends(require_admin)],
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    action: AdminAuditAction | None = None,
+    actor_username: Annotated[str | None, Query(max_length=64)] = None,
+    target_username: Annotated[str | None, Query(max_length=64)] = None,
+) -> AdminAuditLogListResponse:
+    result = list_audit_logs(
+        db,
+        page=page,
+        page_size=page_size,
+        action=action,
+        actor_username=actor_username,
+        target_username=target_username,
+    )
+    return AdminAuditLogListResponse(
+        items=result.items,
+        total=result.total,
+        total_pages=calculate_total_pages(result.total, page_size),
+        page=page,
+        page_size=page_size,
+    )
