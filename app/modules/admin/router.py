@@ -12,6 +12,7 @@ from app.modules.admin.schemas import (
 from app.modules.admin.service import (
     SelfDisableError,
     UserNotFoundError,
+    calculate_total_pages,
     get_user_detail,
     get_user_statistics,
     list_users,
@@ -39,21 +40,24 @@ def read_admin_users(
     _: Annotated[User, Depends(require_admin)],
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    search: Annotated[str | None, Query(max_length=64)] = None,
     q: Annotated[str | None, Query(max_length=64)] = None,
     role: UserRole | None = None,
     status: UserStatus | None = None,
 ) -> AdminUserListResponse:
+    query = search if search is not None else q
     result = list_users(
         db,
         page=page,
         page_size=page_size,
-        query=q,
+        query=query,
         role=role,
         status=status,
     )
     return AdminUserListResponse(
         items=result.items,
         total=result.total,
+        total_pages=calculate_total_pages(result.total, page_size),
         page=page,
         page_size=page_size,
     )

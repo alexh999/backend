@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unicodedata
 from dataclasses import dataclass
+from math import ceil
 
 from sqlalchemy import Select, case, func, select
 from sqlalchemy.orm import Session
@@ -56,7 +57,7 @@ def list_users(
     filters = []
     normalized_query = _normalize_search_query(query)
     if normalized_query:
-        filters.append(User.username.contains(normalized_query, autoescape=True))
+        filters.append(func.lower(User.username).contains(normalized_query, autoescape=True))
     if role is not None:
         filters.append(User.role == role)
     if status is not None:
@@ -103,3 +104,7 @@ def _normalize_search_query(query: str | None) -> str | None:
         return None
     normalized = unicodedata.normalize("NFKC", query).strip().casefold()
     return normalized or None
+
+
+def calculate_total_pages(total: int, page_size: int) -> int:
+    return max(1, ceil(total / page_size))

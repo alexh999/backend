@@ -126,6 +126,7 @@ def test_admin_users_is_paginated_sorted_and_safe(admin_context) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["total"] == 3
+    assert payload["total_pages"] == 2
     assert payload["page"] == 1
     assert payload["page_size"] == 2
     assert [item["username"] for item in payload["items"]] == ["beta", "alpha"]
@@ -161,16 +162,23 @@ def test_admin_users_searches_usernames_and_treats_blank_as_no_filter(admin_cont
     _create_user(session_factory, username="beta")
     headers = _authorization(admin, settings)
 
-    response = client.get("/api/v1/admin/users?q=ALPHA", headers=headers)
-    blank_response = client.get("/api/v1/admin/users?q=%20%20", headers=headers)
+    response = client.get("/api/v1/admin/users?search=ALPHA", headers=headers)
+    legacy_response = client.get("/api/v1/admin/users?q=ALPHA", headers=headers)
+    blank_response = client.get("/api/v1/admin/users?search=%20%20", headers=headers)
 
     assert response.status_code == 200
+    assert legacy_response.status_code == 200
     assert {item["username"] for item in response.json()["items"]} == {
+        "alpha-one",
+        "second-alpha",
+    }
+    assert {item["username"] for item in legacy_response.json()["items"]} == {
         "alpha-one",
         "second-alpha",
     }
     assert blank_response.status_code == 200
     assert blank_response.json()["total"] == 4
+    assert blank_response.json()["total_pages"] == 1
 
 
 def test_admin_users_filters_by_role_status_and_combination(admin_context) -> None:
@@ -184,7 +192,7 @@ def test_admin_users_filters_by_role_status_and_combination(admin_context) -> No
     admins = client.get("/api/v1/admin/users?role=admin", headers=headers).json()
     disabled = client.get("/api/v1/admin/users?status=disabled", headers=headers).json()
     combined = client.get(
-        "/api/v1/admin/users?role=user&status=disabled&q=user",
+        "/api/v1/admin/users?role=user&status=disabled&search=user",
         headers=headers,
     ).json()
 
@@ -192,6 +200,7 @@ def test_admin_users_filters_by_role_status_and_combination(admin_context) -> No
     assert {item["username"] for item in disabled["items"]} == {"admin-disabled", "user-disabled"}
     assert [item["username"] for item in combined["items"]] == ["user-disabled"]
     assert combined["total"] == 1
+    assert combined["total_pages"] == 1
 
 
 @pytest.mark.parametrize("query", ["role=owner", "status=pending"])
