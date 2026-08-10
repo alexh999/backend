@@ -163,7 +163,71 @@ def test_invalid_missing_expired_and_disabled_credentials_are_rejected(auth_cont
         "/api/v1/auth/login",
         json={"username": "disabled-user", "password": "correct horse battery staple"},
     )
-    assert response.status_code == 401
+    assert response.status_code == 403
+    assert response.json() == {
+        "code": "ACCOUNT_DISABLED",
+        "detail": "Account is disabled.",
+    }
+
+
+def test_wrong_password_and_unknown_username_share_the_same_login_error(auth_context) -> None:
+    client, session_factory, _ = auth_context
+    user = _create_test_user(session_factory, username="known-user")
+
+    wrong_password = client.post(
+        "/api/v1/auth/login",
+        json={"username": "known-user", "password": "wrong-password"},
+    )
+    unknown_user = client.post(
+        "/api/v1/auth/login",
+        json={"username": "unknown-user", "password": "wrong-password"},
+    )
+
+    with session_factory() as db:
+        stored_user = db.get(User, user.id)
+        assert stored_user is not None
+        stored_user.status = UserStatus.DISABLED
+        db.commit()
+    disabled_with_wrong_password = client.post(
+        "/api/v1/auth/login",
+        json={"username": "known-user", "password": "wrong-password"},
+    )
+
+    expected = {"detail": "Invalid username or password."}
+    assert wrong_password.status_code == 401
+    assert unknown_user.status_code == 401
+    assert disabled_with_wrong_password.status_code == 401
+    assert wrong_password.json() == expected
+    assert unknown_user.json() == expected
+    assert disabled_with_wrong_password.json() == expected
+
+
+def test_disabled_admin_receives_machine_readable_login_error(auth_context) -> None:
+    client, session_factory, _ = auth_context
+    admin = _create_test_user(
+        session_factory,
+        username="disabled-admin",
+        role=UserRole.ADMIN,
+    )
+    with session_factory() as db:
+        stored_admin = db.get(User, admin.id)
+        assert stored_admin is not None
+        stored_admin.status = UserStatus.DISABLED
+        db.commit()
+
+    response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "username": "disabled-admin",
+            "password": "correct horse battery staple",
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "code": "ACCOUNT_DISABLED",
+        "detail": "Account is disabled.",
+    }
 
 
 def test_login_reports_missing_jwt_configuration_without_exposing_details(auth_context) -> None:

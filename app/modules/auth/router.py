@@ -1,15 +1,23 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
 from app.core.security import SecurityConfigurationError, create_access_token
 from app.db.session import get_db
 from app.modules.auth.dependencies import get_current_user
-from app.modules.auth.schemas import LoginRequest, RegisterRequest, TokenResponse, UserResponse
+from app.modules.auth.schemas import (
+    AuthErrorResponse,
+    LoginRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserResponse,
+)
 from app.modules.users.models import User, UserRole, UserStatus
 from app.modules.users.service import (
+    AccountDisabledError,
     UserAlreadyExistsError,
     UserServiceError,
     authenticate_user,
@@ -47,17 +55,30 @@ def register(
     return UserResponse.model_validate(user)
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    responses={status.HTTP_403_FORBIDDEN: {"model": AuthErrorResponse}},
+)
 def login(
     request: LoginRequest,
     db: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> TokenResponse:
-    user = authenticate_user(
-        db,
-        username=request.username,
-        password=request.password,
-    )
+    try:
+        user = authenticate_user(
+            db,
+            username=request.username,
+            password=request.password,
+        )
+    except AccountDisabledError:
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={
+                "code": "ACCOUNT_DISABLED",
+                "detail": "Account is disabled.",
+            },
+        )
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

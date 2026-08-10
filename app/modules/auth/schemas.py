@@ -19,4 +19,15 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
-__all__ = ["LoginRequest", "RegisterRequest", "TokenResponse", "UserResponse"]
+class AuthErrorResponse(BaseModel):
+    code: str
+    detail: str
+
+
+__all__ = [
+    "AuthErrorResponse",
+    "LoginRequest",
+    "RegisterRequest",
+    "TokenResponse",
+    "UserResponse",
+]

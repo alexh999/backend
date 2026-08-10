@@ -22,6 +22,10 @@ class UserAlreadyExistsError(UserServiceError):
     pass
 
 
+class AccountDisabledError(UserServiceError):
+    pass
+
+
 def normalize_username(username: str) -> str:
     normalized = unicodedata.normalize("NFKC", username).strip().casefold()
     if not normalized:
@@ -90,5 +94,5 @@ def authenticate_user(db: Session, *, username: str, password: str) -> User | No
     if user is None or not verify_password(password, user.password_hash):
         return None
     if user.status != UserStatus.ACTIVE:
-        return None
+        raise AccountDisabledError("Account is disabled.")
     return user
