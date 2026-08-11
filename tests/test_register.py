@@ -90,7 +90,7 @@ def test_register_creates_safe_active_regular_user(register_context) -> None:
     assert "access_token" not in payload
 
 
-@pytest.mark.parametrize("extra_field", ["role", "status", "password_hash"])
+@pytest.mark.parametrize("extra_field", ["role", "status", "password_hash", "is_admin"])
 def test_register_rejects_privileged_or_internal_fields(register_context, extra_field: str) -> None:
     client, _, _ = register_context
     payload = {"username": "new-user", "password": TEST_PASSWORD, extra_field: "admin"}

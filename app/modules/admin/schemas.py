@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.modules.admin.models import AdminAuditAction
 from app.modules.users.schemas import UserResponse
@@ -33,6 +33,14 @@ class AdminUserStatusUpdateRequest(BaseModel):
     is_active: bool
 
 
+SAFE_AUDIT_METADATA_KEYS = {
+    "previous_status",
+    "new_status",
+    "previous_role",
+    "new_role",
+}
+
+
 class AdminAuditLogResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -44,6 +52,13 @@ class AdminAuditLogResponse(BaseModel):
     target_username: str
     created_at: datetime
     metadata: dict[str, Any] = Field(default_factory=dict, validation_alias="metadata_")
+
+    @field_validator("metadata", mode="before")
+    @classmethod
+    def filter_safe_metadata(cls, value: Any) -> dict[str, Any]:
+        if not isinstance(value, dict):
+            return {}
+        return {key: value[key] for key in SAFE_AUDIT_METADATA_KEYS if key in value}
 
 
 class AdminAuditLogListResponse(BaseModel):

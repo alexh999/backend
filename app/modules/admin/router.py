@@ -1,4 +1,5 @@
 from typing import Annotated
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.orm import Session
@@ -12,11 +13,12 @@ from app.modules.admin.schemas import (
     AdminUserStatusUpdateRequest,
 )
 from app.modules.admin.service import (
-    create_admin_user,
-    calculate_total_pages,
+    LastActiveAdminError,
     SelfDisableError,
     UserNotFoundError,
     UserServiceError,
+    calculate_total_pages,
+    create_admin_user,
     get_user_detail,
     get_user_statistics,
     list_audit_logs,
@@ -131,6 +133,11 @@ def update_admin_user_status(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+    except LastActiveAdminError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
     return UserResponse.model_validate(user)
 
 
@@ -147,7 +154,14 @@ def read_admin_audit_logs(
     action: AdminAuditAction | None = None,
     actor_username: Annotated[str | None, Query(max_length=64)] = None,
     target_username: Annotated[str | None, Query(max_length=64)] = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
 ) -> AdminAuditLogListResponse:
+    if start_date is not None and end_date is not None and start_date > end_date:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="start_date must be on or before end_date.",
+        )
     result = list_audit_logs(
         db,
         page=page,
@@ -155,6 +169,8 @@ def read_admin_audit_logs(
         action=action,
         actor_username=actor_username,
         target_username=target_username,
+        start_date=start_date,
+        end_date=end_date,
     )
     return AdminAuditLogListResponse(
         items=result.items,

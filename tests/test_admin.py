@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Generator
+from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,6 +14,7 @@ from app.core.security import create_access_token
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import create_app
+from app.modules.admin import service as admin_service
 from app.modules.admin.models import AdminAuditAction, AdminAuditLog
 from app.modules.users.models import User, UserRole, UserStatus
 from app.modules.users.service import create_user
@@ -535,6 +537,48 @@ def test_admin_cannot_disable_self(admin_context) -> None:
     assert response.json()["detail"] == "Administrators cannot disable their own account."
 
 
+def test_admin_cannot_disable_last_active_admin(admin_context) -> None:
+    client, session_factory, settings = admin_context
+    admin = _create_user(session_factory, username="admin", role=UserRole.ADMIN)
+
+    response = client.patch(
+        f"/api/v1/admin/users/{admin.id}/status",
+        json={"is_active": False},
+        headers=_authorization(admin, settings),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Administrators cannot disable their own account."
+    assert _audit_log_count(session_factory) == 0
+    with session_factory() as db:
+        active_admins = db.scalar(
+            select(func.count(User.id)).where(
+                User.role == UserRole.ADMIN,
+                User.status == UserStatus.ACTIVE,
+            )
+        )
+        assert active_admins == 1
+
+
+def test_admin_can_disable_another_admin_when_more_than_one_active_admin_exists(admin_context) -> None:
+    client, session_factory, settings = admin_context
+    admin = _create_user(session_factory, username="admin", role=UserRole.ADMIN)
+    other_admin = _create_user(session_factory, username="other-admin", role=UserRole.ADMIN)
+
+    response = client.patch(
+        f"/api/v1/admin/users/{other_admin.id}/status",
+        json={"is_active": False},
+        headers=_authorization(admin, settings),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "disabled"
+    with session_factory() as db:
+        stored_user = db.get(User, other_admin.id)
+        assert stored_user is not None
+        assert stored_user.status == UserStatus.DISABLED
+
+
 def test_disabled_user_cannot_login_or_use_old_token(admin_context) -> None:
     client, session_factory, settings = admin_context
     admin = _create_user(session_factory, username="admin", role=UserRole.ADMIN)
@@ -592,6 +636,7 @@ def test_admin_creation_and_status_changes_create_audit_logs(admin_context) -> N
     ]
     assert all(log.actor_user_id == admin.id and log.actor_username == "audit-admin" for log in logs)
     assert logs[0].target_username == "created-admin"
+    assert logs[0].metadata_ == {"new_role": "admin", "new_status": "active"}
     assert logs[1].target_user_id == user.id
     assert logs[1].target_username == "audit-target"
     assert logs[1].metadata_ == {"previous_status": "active", "new_status": "disabled"}
@@ -707,7 +752,115 @@ def test_admin_audit_logs_are_paginated_sorted_filtered_and_safe(admin_context) 
     }
 
 
-@pytest.mark.parametrize("query", ["page=0", "page_size=101", "action=PASSWORD_CHANGED"])
+def test_admin_audit_logs_filter_by_date_range(admin_context) -> None:
+    client, session_factory, settings = admin_context
+    admin = _create_user(session_factory, username="admin", role=UserRole.ADMIN)
+    target = _create_user(session_factory, username="target")
+    with session_factory() as db:
+        db.add_all(
+            [
+                AdminAuditLog(
+                    actor_user_id=admin.id,
+                    actor_username=admin.username,
+                    action=AdminAuditAction.USER_DISABLED,
+                    target_user_id=target.id,
+                    target_username=target.username,
+                    created_at=datetime(2026, 8, 1, 9, 0, tzinfo=timezone.utc),
+                    metadata_={"previous_status": "active", "new_status": "disabled"},
+                ),
+                AdminAuditLog(
+                    actor_user_id=admin.id,
+                    actor_username=admin.username,
+                    action=AdminAuditAction.USER_ENABLED,
+                    target_user_id=target.id,
+                    target_username=target.username,
+                    created_at=datetime(2026, 8, 5, 9, 0, tzinfo=timezone.utc),
+                    metadata_={"previous_status": "disabled", "new_status": "active"},
+                ),
+            ]
+        )
+        db.commit()
+
+    response = client.get(
+        "/api/v1/admin/audit-logs?start_date=2026-08-02&end_date=2026-08-06",
+        headers=_authorization(admin, settings),
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 1
+    assert payload["items"][0]["action"] == "USER_ENABLED"
+
+
+def test_admin_audit_logs_do_not_return_sensitive_metadata(admin_context) -> None:
+    client, session_factory, settings = admin_context
+    admin = _create_user(session_factory, username="admin", role=UserRole.ADMIN)
+    target = _create_user(session_factory, username="target")
+    with session_factory() as db:
+        db.add(
+            AdminAuditLog(
+                actor_user_id=admin.id,
+                actor_username=admin.username,
+                action=AdminAuditAction.USER_DISABLED,
+                target_user_id=target.id,
+                target_username=target.username,
+                metadata_={
+                    "previous_status": "active",
+                    "new_status": "disabled",
+                    "password_hash": "must-not-leak",
+                    "token": "must-not-leak",
+                },
+            )
+        )
+        db.commit()
+
+    response = client.get(
+        "/api/v1/admin/audit-logs",
+        headers=_authorization(admin, settings),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["items"][0]["metadata"] == {
+        "previous_status": "active",
+        "new_status": "disabled",
+    }
+    assert "must-not-leak" not in response.text
+
+
+def test_user_status_change_rolls_back_when_audit_log_write_fails(admin_context, monkeypatch) -> None:
+    _, session_factory, _ = admin_context
+    admin = _create_user(session_factory, username="admin", role=UserRole.ADMIN)
+    target = _create_user(session_factory, username="target")
+
+    def fail_audit_log(*args, **kwargs):
+        raise RuntimeError("audit log write failed")
+
+    monkeypatch.setattr(admin_service, "_add_audit_log", fail_audit_log)
+
+    with session_factory() as db:
+        actor = db.get(User, admin.id)
+        stored_target = db.get(User, target.id)
+        assert actor is not None
+        assert stored_target is not None
+        with pytest.raises(RuntimeError, match="audit log write failed"):
+            admin_service.update_user_status(
+                db,
+                user_id=stored_target.id,
+                actor=actor,
+                is_active=False,
+            )
+
+    with session_factory() as db:
+        stored_target = db.get(User, target.id)
+        assert stored_target is not None
+        assert stored_target.status == UserStatus.ACTIVE
+        assert db.scalar(select(func.count(AdminAuditLog.id))) == 0
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["page=0", "page_size=101", "action=PASSWORD_CHANGED", "start_date=2026-08-05&end_date=2026-08-01"],
+)
 def test_admin_audit_logs_reject_invalid_query_parameters(admin_context, query: str) -> None:
     client, session_factory, settings = admin_context
     admin = _create_user(session_factory, username="admin", role=UserRole.ADMIN)

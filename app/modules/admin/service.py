@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unicodedata
 from dataclasses import dataclass
+from datetime import date, datetime, time
 from math import ceil
 from typing import Any
 
@@ -34,6 +35,10 @@ class SelfDisableError(UserServiceError):
     pass
 
 
+class LastActiveAdminError(UserServiceError):
+    pass
+
+
 def create_admin_user(
     db: Session,
     *,
@@ -55,6 +60,10 @@ def create_admin_user(
             actor=actor,
             action=AdminAuditAction.ADMIN_CREATED,
             target=user,
+            metadata={
+                "new_role": user.role.value,
+                "new_status": user.status.value,
+            },
         )
         db.commit()
     except Exception:
@@ -129,6 +138,13 @@ def update_user_status(
         raise UserNotFoundError("User not found.")
     if not is_active and user.id == actor.id:
         raise SelfDisableError("Administrators cannot disable their own account.")
+    if (
+        not is_active
+        and user.role == UserRole.ADMIN
+        and user.status == UserStatus.ACTIVE
+        and _active_admin_count(db) <= 1
+    ):
+        raise LastActiveAdminError("The last active administrator cannot be disabled.")
 
     previous_status = user.status
     user.status = UserStatus.ACTIVE if is_active else UserStatus.DISABLED
@@ -161,6 +177,8 @@ def list_audit_logs(
     action: AdminAuditAction | None = None,
     actor_username: str | None = None,
     target_username: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
 ) -> AuditLogPage:
     filters = []
     normalized_actor_username = _normalize_search_query(actor_username)
@@ -181,6 +199,10 @@ def list_audit_logs(
                 autoescape=True,
             )
         )
+    if start_date is not None:
+        filters.append(AdminAuditLog.created_at >= datetime.combine(start_date, time.min))
+    if end_date is not None:
+        filters.append(AdminAuditLog.created_at <= datetime.combine(end_date, time.max))
 
     filtered_logs: Select[tuple[AdminAuditLog]] = select(AdminAuditLog).where(*filters)
     total = db.scalar(select(func.count()).select_from(filtered_logs.subquery())) or 0
@@ -203,6 +225,18 @@ def _normalize_search_query(query: str | None) -> str | None:
 
 def calculate_total_pages(total: int, page_size: int) -> int:
     return max(1, ceil(total / page_size))
+
+
+def _active_admin_count(db: Session) -> int:
+    return int(
+        db.scalar(
+            select(func.count(User.id)).where(
+                User.role == UserRole.ADMIN,
+                User.status == UserStatus.ACTIVE,
+            )
+        )
+        or 0
+    )
 
 
 def _add_audit_log(
