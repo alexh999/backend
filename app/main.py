@@ -5,7 +5,6 @@ from app.core.config import Settings, get_settings
 from app.core.cors import add_cors_middleware
 from app.core.errors import add_exception_handlers
 from app.core.logging import configure_logging
-from app.db.session import init_db
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -20,10 +19,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     add_cors_middleware(app, settings)
     add_exception_handlers(app)
     app.include_router(api_router, prefix=settings.api_v1_prefix)
-
-    @app.on_event("startup")
-    def startup() -> None:
-        init_db(settings)
 
     return app
 

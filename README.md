@@ -78,6 +78,10 @@ C:\Users\Lenovo\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\
 
 ## Run
 
+After merging or pulling new code, prefer the PowerShell startup script. It applies
+all Alembic migrations first and starts Uvicorn only if the database upgrade
+succeeds:
+
 ```powershell
 Set-Location D:\stockapp\backend
 .\start_backend.ps1
