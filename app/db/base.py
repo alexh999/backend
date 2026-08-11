@@ -1,4 +1,5 @@
-"""Future declarative database base.
+from sqlalchemy.orm import DeclarativeBase
 
-TODO: Add SQLAlchemy Declarative Base only when database modeling starts.
-"""
+
+class Base(DeclarativeBase):
+    pass

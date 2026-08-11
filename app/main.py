@@ -19,6 +19,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     add_cors_middleware(app, settings)
     add_exception_handlers(app)
     app.include_router(api_router, prefix=settings.api_v1_prefix)
+
     return app
 
 
