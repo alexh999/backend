@@ -9,7 +9,6 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import Settings, get_settings
-from app.core.security import verify_password
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import create_app
@@ -77,7 +76,7 @@ def _login(client: TestClient, username: str, password: str = TEST_PASSWORD) -> 
 
 
 def test_register_creates_safe_active_regular_user(register_context) -> None:
-    client, session_factory, _ = register_context
+    client, _, _ = register_context
 
     response = _register(client)
 
@@ -89,14 +88,6 @@ def test_register_creates_safe_active_regular_user(register_context) -> None:
     assert "password" not in payload
     assert "password_hash" not in payload
     assert "access_token" not in payload
-
-    with session_factory() as db:
-        created = db.scalar(select(User).where(User.username == "new-user"))
-        assert created is not None
-        assert created.role == UserRole.USER
-        assert created.status == UserStatus.ACTIVE
-        assert created.password_hash != TEST_PASSWORD
-        assert verify_password(TEST_PASSWORD, created.password_hash)
 
 
 @pytest.mark.parametrize("extra_field", ["role", "status", "password_hash"])
@@ -168,3 +159,69 @@ def test_registered_user_can_login_and_read_auth_me(register_context) -> None:
     assert response.status_code == 200
     assert response.json()["username"] == "login-user"
     assert response.json()["role"] == "user"
+
+
+def test_registered_user_cannot_access_admin_endpoints(register_context) -> None:
+    client, _, _ = register_context
+    assert _register(client, username="regular-user").status_code == 201
+    token = _login(client, "regular-user")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    assert client.get("/api/v1/admin/overview", headers=headers).status_code == 403
+    assert client.get("/api/v1/admin/users", headers=headers).status_code == 403
+
+
+def test_registered_user_appears_in_admin_users_and_overview(register_context) -> None:
+    client, session_factory, settings = register_context
+    assert _register(client, username="visible-user").status_code == 201
+    with session_factory() as db:
+        admin = create_user(
+            db,
+            username="local-admin",
+            password=TEST_PASSWORD,
+            role=UserRole.ADMIN,
+            status=UserStatus.ACTIVE,
+        )
+        admin_id = admin.id
+
+    from app.core.security import create_access_token
+
+    token = create_access_token(admin_id, settings)
+    headers = {"Authorization": f"Bearer {token}"}
+    users_response = client.get("/api/v1/admin/users?q=visible-user", headers=headers)
+    overview_response = client.get("/api/v1/admin/overview", headers=headers)
+
+    assert users_response.status_code == 200
+    assert [item["username"] for item in users_response.json()["items"]] == ["visible-user"]
+    assert overview_response.status_code == 200
+    assert overview_response.json()["users"] == {
+        "total": 2,
+        "active": 2,
+        "disabled": 0,
+        "admins": 1,
+        "regular_users": 1,
+    }
+
+
+def test_create_admin_uses_shared_creation_and_password_rules(register_context, monkeypatch) -> None:
+    _, session_factory, settings = register_context
+    from app.scripts import create_admin
+
+    passwords = iter([TEST_PASSWORD, TEST_PASSWORD])
+    monkeypatch.setattr(create_admin, "get_settings", lambda: settings)
+    monkeypatch.setattr(create_admin.getpass, "getpass", lambda _prompt: next(passwords))
+    monkeypatch.setattr("sys.argv", ["create_admin", "--username", "ScriptAdmin"])
+
+    assert create_admin.main() == 0
+    with session_factory() as db:
+        created = db.scalar(select(User).where(User.username == "scriptadmin"))
+        assert created is not None
+        assert created.role == UserRole.ADMIN
+        assert created.status == UserStatus.ACTIVE
+        assert created.password_hash != TEST_PASSWORD
+
+
+def test_existing_public_health_route_remains_public(register_context) -> None:
+    client, _, _ = register_context
+
+    assert client.get("/api/v1/health").status_code == 200

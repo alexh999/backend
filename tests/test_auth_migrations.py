@@ -19,6 +19,7 @@ def test_users_migration_upgrades_and_downgrades_isolated_database(tmp_path) -> 
         inspector = inspect(engine)
         assert "users" in inspector.get_table_names()
         assert "admin_audit_logs" in inspector.get_table_names()
+        assert "paper_accounts" not in inspector.get_table_names()
         assert {column["name"] for column in inspector.get_columns("users")} == {
             "id",
             "username",

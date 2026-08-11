@@ -5,6 +5,7 @@ from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import Settings, get_settings
+from app.db.base import Base
 
 
 @lru_cache
@@ -22,6 +23,26 @@ def get_session_factory(settings: Settings | None = None) -> sessionmaker[Sessio
         autoflush=False,
         autocommit=False,
         expire_on_commit=False,
+    )
+
+
+def init_db(settings: Settings | None = None) -> None:
+    from app.modules.paper_trading.models import (
+        PaperAccount,
+        PaperExecution,
+        PaperOrder,
+        PaperPosition,
+    )
+
+    settings = settings or get_settings()
+    Base.metadata.create_all(
+        bind=get_engine(settings.database_url),
+        tables=[
+            PaperAccount.__table__,
+            PaperPosition.__table__,
+            PaperOrder.__table__,
+            PaperExecution.__table__,
+        ],
     )
 
 

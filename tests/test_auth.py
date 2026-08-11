@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from decimal import Decimal
 from typing import Annotated
 
 import pytest
@@ -20,6 +21,7 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.main import create_app
 from app.modules.auth.dependencies import require_admin
+from app.modules.paper_trading.models import PaperAccount
 from app.modules.users.models import User, UserRole, UserStatus
 from app.modules.users.service import create_user
 
@@ -47,6 +49,7 @@ def auth_context(tmp_path):
         jwt_secret=SecretStr("test-only-jwt-secret-that-is-not-used-in-production"),
         jwt_algorithm="HS256",
         siliconflow_model=TEST_MODEL,
+        paper_trading_initial_cash=Decimal("200000"),
     )
     app = create_app(settings)
 
