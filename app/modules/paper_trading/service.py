@@ -87,20 +87,25 @@ class PaperTradingService:
     def place_order(self, request: PaperOrderCreateRequest) -> PaperOrderCreateResponse:
         symbol = normalize_symbol(request.symbol)
         quote = self._quote_provider.get_quote(symbol)
-        if request.side == "buy":
-            order, execution, account = self._buy(symbol, quote, request.quantity)
-        elif request.side == "sell":
-            order, execution, account = self._sell(symbol, quote, request.quantity)
-        else:
-            raise ApplicationError("Unsupported paper trading order side.", status_code=422)
+        try:
+            if request.side == "buy":
+                order, execution, account = self._buy(symbol, quote, request.quantity)
+            elif request.side == "sell":
+                order, execution, account = self._sell(symbol, quote, request.quantity)
+            else:
+                raise ApplicationError("Unsupported paper trading order side.", status_code=422)
 
-        summary = self._build_portfolio(account).summary
-        self._db.commit()
-        return PaperOrderCreateResponse(
-            order=PaperOrderResponse.model_validate(order),
-            execution=PaperExecutionResponse.model_validate(execution),
-            summary=summary,
-        )
+            summary = self._build_portfolio(account).summary
+            response = PaperOrderCreateResponse(
+                order=PaperOrderResponse.model_validate(order),
+                execution=PaperExecutionResponse.model_validate(execution),
+                summary=summary,
+            )
+            self._db.commit()
+            return response
+        except Exception:
+            self._db.rollback()
+            raise
 
     def _buy(
         self,
@@ -108,57 +113,56 @@ class PaperTradingService:
         quote: PaperTradingQuote,
         quantity: int,
     ) -> tuple[PaperOrder, PaperExecution, PaperAccount]:
-        with self._db.begin():
-            account = self._get_or_create_demo_account()
-            self._validate_quote_currency(account, quote)
-            amount = _money(quote.price * quantity)
-            if account.available_cash < amount:
-                raise ApplicationError("Insufficient paper trading cash.", status_code=409)
+        account = self._get_or_create_demo_account()
+        self._validate_quote_currency(account, quote)
+        amount = _money(quote.price * quantity)
+        if account.available_cash < amount:
+            raise ApplicationError("Insufficient paper trading cash.", status_code=409)
 
-            position = self._get_position(account.id, symbol)
-            filled_at = utc_now()
-            order = PaperOrder(
-                account_id=account.id,
-                symbol=symbol,
-                side="buy",
-                order_type="market",
-                quantity=quantity,
-                status="filled",
-                submitted_at=filled_at,
-                filled_at=filled_at,
-            )
-            self._db.add(order)
-            self._db.flush()
-            execution = self._create_execution(
-                account=account,
-                order=order,
-                quote=quote,
-                quantity=quantity,
-                executed_at=filled_at,
-            )
-            account.available_cash = _money(account.available_cash - amount)
+        position = self._get_position(account.id, symbol)
+        filled_at = utc_now()
+        order = PaperOrder(
+            account_id=account.id,
+            symbol=symbol,
+            side="buy",
+            order_type="market",
+            quantity=quantity,
+            status="filled",
+            submitted_at=filled_at,
+            filled_at=filled_at,
+        )
+        self._db.add(order)
+        self._db.flush()
+        execution = self._create_execution(
+            account=account,
+            order=order,
+            quote=quote,
+            quantity=quantity,
+            executed_at=filled_at,
+        )
+        account.available_cash = _money(account.available_cash - amount)
 
-            if position is None:
-                self._db.add(
-                    PaperPosition(
-                        account_id=account.id,
-                        symbol=symbol,
-                        name=quote.name,
-                        currency=quote.currency,
-                        quantity=quantity,
-                        average_cost=_price(quote.price),
-                    )
+        if position is None:
+            self._db.add(
+                PaperPosition(
+                    account_id=account.id,
+                    symbol=symbol,
+                    name=quote.name,
+                    currency=quote.currency,
+                    quantity=quantity,
+                    average_cost=_price(quote.price),
                 )
-            else:
-                old_quantity = position.quantity
-                new_quantity = old_quantity + quantity
-                new_average_cost = (
-                    (old_quantity * position.average_cost) + (quantity * quote.price)
-                ) / new_quantity
-                position.quantity = new_quantity
-                position.average_cost = _price(new_average_cost)
-                position.name = quote.name
-                position.currency = quote.currency
+            )
+        else:
+            old_quantity = position.quantity
+            new_quantity = old_quantity + quantity
+            new_average_cost = (
+                (old_quantity * position.average_cost) + (quantity * quote.price)
+            ) / new_quantity
+            position.quantity = new_quantity
+            position.average_cost = _price(new_average_cost)
+            position.name = quote.name
+            position.currency = quote.currency
 
         return order, execution, account
 
@@ -168,43 +172,42 @@ class PaperTradingService:
         quote: PaperTradingQuote,
         quantity: int,
     ) -> tuple[PaperOrder, PaperExecution, PaperAccount]:
-        with self._db.begin():
-            account = self._get_or_create_demo_account()
-            self._validate_quote_currency(account, quote)
-            position = self._get_position(account.id, symbol)
-            if position is None:
-                raise ApplicationError("Paper trading position not found.", status_code=404)
-            if position.quantity < quantity:
-                raise ApplicationError("Insufficient paper trading holdings.", status_code=409)
+        account = self._get_or_create_demo_account()
+        self._validate_quote_currency(account, quote)
+        position = self._get_position(account.id, symbol)
+        if position is None:
+            raise ApplicationError("Paper trading position not found.", status_code=404)
+        if position.quantity < quantity:
+            raise ApplicationError("Insufficient paper trading holdings.", status_code=409)
 
-            filled_at = utc_now()
-            order = PaperOrder(
-                account_id=account.id,
-                symbol=symbol,
-                side="sell",
-                order_type="market",
-                quantity=quantity,
-                status="filled",
-                submitted_at=filled_at,
-                filled_at=filled_at,
-            )
-            self._db.add(order)
-            self._db.flush()
-            execution = self._create_execution(
-                account=account,
-                order=order,
-                quote=quote,
-                quantity=quantity,
-                executed_at=filled_at,
-            )
-            account.available_cash = _money(account.available_cash + quote.price * quantity)
-            remaining_quantity = position.quantity - quantity
-            if remaining_quantity == 0:
-                self._db.delete(position)
-            else:
-                position.quantity = remaining_quantity
-                position.name = quote.name
-                position.currency = quote.currency
+        filled_at = utc_now()
+        order = PaperOrder(
+            account_id=account.id,
+            symbol=symbol,
+            side="sell",
+            order_type="market",
+            quantity=quantity,
+            status="filled",
+            submitted_at=filled_at,
+            filled_at=filled_at,
+        )
+        self._db.add(order)
+        self._db.flush()
+        execution = self._create_execution(
+            account=account,
+            order=order,
+            quote=quote,
+            quantity=quantity,
+            executed_at=filled_at,
+        )
+        account.available_cash = _money(account.available_cash + quote.price * quantity)
+        remaining_quantity = position.quantity - quantity
+        if remaining_quantity == 0:
+            self._db.delete(position)
+        else:
+            position.quantity = remaining_quantity
+            position.name = quote.name
+            position.currency = quote.currency
 
         return order, execution, account
 

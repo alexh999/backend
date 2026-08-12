@@ -33,6 +33,29 @@ def get_current_user(
     return user
 
 
+def get_optional_current_regular_user(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> User | None:
+    if credentials is None:
+        return None
+    if credentials.scheme.lower() != "bearer":
+        raise _unauthorized()
+
+    try:
+        user_id = decode_access_token(credentials.credentials, settings)
+    except (SecurityConfigurationError, TokenValidationError):
+        raise _unauthorized() from None
+
+    user = get_user_by_id(db, user_id)
+    if user is None or user.status != UserStatus.ACTIVE:
+        raise _unauthorized()
+    if user.role != UserRole.USER:
+        return None
+    return user
+
+
 def require_admin(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> User:

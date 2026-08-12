@@ -5,6 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import get_settings
 from app.db.base import Base
+from app.modules.activity import models as activity_models  # noqa: F401
 from app.modules.admin import models as admin_models  # noqa: F401
 from app.modules.paper_trading import models as paper_trading_models  # noqa: F401
 from app.modules.users import models as user_models  # noqa: F401

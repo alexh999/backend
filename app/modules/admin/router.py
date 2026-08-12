@@ -1,14 +1,16 @@
-from typing import Annotated
 from datetime import date
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.modules.activity.service import ActivityStatsRangeError, get_user_activity_summary
 from app.modules.admin.models import AdminAuditAction
 from app.modules.admin.schemas import (
     AdminAuditLogListResponse,
     AdminOverviewResponse,
+    AdminUserActivitySummaryResponse,
     AdminUserListResponse,
     AdminUserStatusUpdateRequest,
 )
@@ -40,6 +42,30 @@ def read_admin_overview(
     _: Annotated[User, Depends(require_admin)],
 ) -> AdminOverviewResponse:
     return AdminOverviewResponse(users=get_user_statistics(db))
+
+
+@router.get("/user-activity-summary", response_model=AdminUserActivitySummaryResponse)
+def read_admin_user_activity_summary(
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[User, Depends(require_admin)],
+    as_of_date: date | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> AdminUserActivitySummaryResponse:
+    try:
+        return AdminUserActivitySummaryResponse.model_validate(
+            get_user_activity_summary(
+                db,
+                as_of_date=as_of_date,
+                start_date=start_date,
+                end_date=end_date,
+            ).model_dump()
+        )
+    except ActivityStatsRangeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
 
 
 @router.get("/users", response_model=AdminUserListResponse)

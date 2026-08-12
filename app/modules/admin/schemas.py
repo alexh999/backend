@@ -4,6 +4,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.modules.admin.models import AdminAuditAction
+from app.modules.activity.schemas import UserActivitySummaryResponse
 from app.modules.users.schemas import UserResponse
 
 
@@ -67,3 +68,7 @@ class AdminAuditLogListResponse(BaseModel):
     total_pages: int = Field(ge=1)
     page: int = Field(ge=1)
     page_size: int = Field(ge=1, le=100)
+
+
+class AdminUserActivitySummaryResponse(UserActivitySummaryResponse):
+    pass

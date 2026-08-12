@@ -1,7 +1,12 @@
+import logging
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
 
+from app.db.session import get_db
+from app.modules.activity.service import UserActivityEvent, record_user_activity
+from app.modules.auth.dependencies import get_optional_current_regular_user
 from app.modules.paper_trading.dependencies import get_paper_trading_service
 from app.modules.paper_trading.schemas import (
     PaperOrderCreateRequest,
@@ -11,9 +16,11 @@ from app.modules.paper_trading.schemas import (
     PaperPositionResponse,
 )
 from app.modules.paper_trading.service import PaperTradingService
+from app.modules.users.models import User
 
 
 router = APIRouter(prefix="/paper-trading", tags=["paper-trading"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("/portfolio", response_model=PaperPortfolioResponse)
@@ -44,10 +51,24 @@ def list_paper_trading_orders(
 def create_paper_trading_order(
     request: PaperOrderCreateRequest,
     service: PaperTradingService = Depends(get_paper_trading_service),
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_regular_user),
 ) -> PaperOrderCreateResponse:
     """Create an immediate-fill market order.
 
     Phase 1 has no open orders to cancel because every accepted market order is
     filled synchronously.
     """
-    return service.place_order(request)
+    response = service.place_order(request)
+    _record_paper_order_activity(db, current_user)
+    return response
+
+
+def _record_paper_order_activity(db: Session, user: User | None) -> None:
+    try:
+        record_user_activity(db, user=user, event=UserActivityEvent.PAPER_ORDER)
+    except Exception:
+        logger.exception(
+            "Failed to record paper trading user activity",
+            extra={"user_id": user.id if user is not None else None},
+        )
