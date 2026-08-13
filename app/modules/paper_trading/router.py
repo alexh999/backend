@@ -1,12 +1,12 @@
 import logging
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.modules.activity.service import UserActivityEvent, record_user_activity
-from app.modules.auth.dependencies import get_optional_current_regular_user
+from app.modules.auth.dependencies import get_current_user, get_optional_current_regular_user
 from app.modules.paper_trading.dependencies import get_paper_trading_service
 from app.modules.paper_trading.schemas import (
     PaperOrderCreateRequest,
@@ -16,7 +16,7 @@ from app.modules.paper_trading.schemas import (
     PaperPositionResponse,
 )
 from app.modules.paper_trading.service import PaperTradingService
-from app.modules.users.models import User
+from app.modules.users.models import User, UserRole
 
 
 router = APIRouter(prefix="/paper-trading", tags=["paper-trading"])
@@ -62,6 +62,20 @@ def create_paper_trading_order(
     response = service.place_order(request)
     _record_paper_order_activity(db, current_user)
     return response
+
+
+@router.post("/reset", response_model=PaperPortfolioResponse)
+def reset_paper_trading_account(
+    current_user: User = Depends(get_current_user),
+    service: PaperTradingService = Depends(get_paper_trading_service),
+) -> PaperPortfolioResponse:
+    if current_user.role != UserRole.USER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="A regular user account is required to reset paper trading.",
+        )
+    service.set_user(current_user.id)
+    return service.reset_account()
 
 
 def _record_paper_order_activity(db: Session, user: User | None) -> None:

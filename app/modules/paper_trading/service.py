@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import logging
 from decimal import Decimal, ROUND_HALF_UP
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.errors import ApplicationError
 from app.modules.paper_trading.models import (
     PaperAccount,
+    PaperAccountResetEvent,
     PaperExecution,
     PaperOrder,
     PaperPosition,
@@ -34,6 +37,7 @@ from app.modules.paper_trading.schemas import (
 MONEY_QUANT = Decimal("0.01")
 PRICE_QUANT = Decimal("0.0001")
 PERCENT_QUANT = Decimal("0.01")
+logger = logging.getLogger(__name__)
 
 
 class PaperTradingService:
@@ -42,17 +46,25 @@ class PaperTradingService:
         db: Session,
         quote_provider: PaperTradingQuoteProvider,
         settings: Settings,
+        user_id: int | None = None,
     ) -> None:
         self._db = db
         self._quote_provider = quote_provider
         self._settings = settings
+        self._user_id = user_id
+
+    def set_user(self, user_id: int | None) -> None:
+        self._user_id = user_id
 
     def get_portfolio(self) -> PaperPortfolioResponse:
-        with self._db.begin():
-            account = self._get_or_create_demo_account()
-        portfolio = self._build_portfolio(account)
-        self._db.commit()
-        return portfolio
+        try:
+            account = self._get_or_create_account()
+            portfolio = self._build_portfolio(account)
+            self._db.commit()
+            return portfolio
+        except Exception:
+            self._db.rollback()
+            raise
 
     def list_positions(self) -> list[PaperPositionResponse]:
         portfolio = self.get_portfolio()
@@ -65,24 +77,27 @@ class PaperTradingService:
         status: str | None = None,
         limit: int = 50,
     ) -> list[PaperOrderResponse]:
-        with self._db.begin():
-            account = self._get_or_create_demo_account()
-        query: Select[tuple[PaperOrder]] = (
-            select(PaperOrder)
-            .where(PaperOrder.account_id == account.id)
-            .order_by(PaperOrder.submitted_at.desc(), PaperOrder.id.desc())
-            .limit(limit)
-        )
-        if side is not None:
-            query = query.where(PaperOrder.side == side)
-        if status is not None:
-            query = query.where(PaperOrder.status == status)
-        orders = [
-            PaperOrderResponse.model_validate(order)
-            for order in self._db.scalars(query).all()
-        ]
-        self._db.commit()
-        return orders
+        try:
+            account = self._get_or_create_account()
+            query: Select[tuple[PaperOrder]] = (
+                select(PaperOrder)
+                .where(PaperOrder.account_id == account.id)
+                .order_by(PaperOrder.submitted_at.desc(), PaperOrder.id.desc())
+                .limit(limit)
+            )
+            if side is not None:
+                query = query.where(PaperOrder.side == side)
+            if status is not None:
+                query = query.where(PaperOrder.status == status)
+            orders = [
+                PaperOrderResponse.model_validate(order)
+                for order in self._db.scalars(query).all()
+            ]
+            self._db.commit()
+            return orders
+        except Exception:
+            self._db.rollback()
+            raise
 
     def place_order(self, request: PaperOrderCreateRequest) -> PaperOrderCreateResponse:
         symbol = normalize_symbol(request.symbol)
@@ -107,13 +122,67 @@ class PaperTradingService:
             self._db.rollback()
             raise
 
+    def reset_account(self) -> PaperPortfolioResponse:
+        if self._user_id is None:
+            raise ApplicationError("Authentication is required to reset a paper trading account.", status_code=401)
+
+        try:
+            account = self._get_or_create_account()
+            self._db.execute(delete(PaperExecution).where(PaperExecution.account_id == account.id))
+            self._db.execute(delete(PaperOrder).where(PaperOrder.account_id == account.id))
+            self._db.execute(delete(PaperPosition).where(PaperPosition.account_id == account.id))
+
+            initial_cash = _money(self._settings.paper_trading_initial_cash)
+            account.currency = self._settings.paper_trading_currency
+            account.initial_cash = initial_cash
+            account.available_cash = initial_cash
+            account.updated_at = utc_now()
+            self._db.add(
+                PaperAccountResetEvent(
+                    account_id=account.id,
+                    user_id=self._user_id,
+                    result="success",
+                )
+            )
+            self._db.flush()
+            portfolio = self._build_portfolio(account)
+            self._db.commit()
+            return portfolio
+        except Exception:
+            self._db.rollback()
+            self._record_failed_reset()
+            raise
+
+    def _record_failed_reset(self) -> None:
+        try:
+            account = self._db.scalar(
+                select(PaperAccount).where(PaperAccount.account_key == self._account_key())
+            )
+            if account is None or self._user_id is None:
+                self._db.rollback()
+                return
+            self._db.add(
+                PaperAccountResetEvent(
+                    account_id=account.id,
+                    user_id=self._user_id,
+                    result="failure",
+                )
+            )
+            self._db.commit()
+        except Exception:
+            self._db.rollback()
+            logger.exception(
+                "Failed to record paper account reset failure",
+                extra={"user_id": self._user_id},
+            )
+
     def _buy(
         self,
         symbol: str,
         quote: PaperTradingQuote,
         quantity: int,
     ) -> tuple[PaperOrder, PaperExecution, PaperAccount]:
-        account = self._get_or_create_demo_account()
+        account = self._get_or_create_account()
         self._validate_quote_currency(account, quote)
         amount = _money(quote.price * quantity)
         if account.available_cash < amount:
@@ -172,7 +241,7 @@ class PaperTradingService:
         quote: PaperTradingQuote,
         quantity: int,
     ) -> tuple[PaperOrder, PaperExecution, PaperAccount]:
-        account = self._get_or_create_demo_account()
+        account = self._get_or_create_account()
         self._validate_quote_currency(account, quote)
         position = self._get_position(account.id, symbol)
         if position is None:
@@ -211,8 +280,8 @@ class PaperTradingService:
 
         return order, execution, account
 
-    def _get_or_create_demo_account(self) -> PaperAccount:
-        account_key = self._settings.paper_trading_demo_account_key
+    def _get_or_create_account(self) -> PaperAccount:
+        account_key = self._account_key()
         account = self._db.scalar(
             select(PaperAccount).where(PaperAccount.account_key == account_key)
         )
@@ -222,13 +291,27 @@ class PaperTradingService:
         initial_cash = _money(self._settings.paper_trading_initial_cash)
         account = PaperAccount(
             account_key=account_key,
+            user_id=self._user_id,
             currency=self._settings.paper_trading_currency,
             initial_cash=initial_cash,
             available_cash=initial_cash,
         )
         self._db.add(account)
-        self._db.flush()
+        try:
+            self._db.flush()
+        except IntegrityError:
+            self._db.rollback()
+            account = self._db.scalar(
+                select(PaperAccount).where(PaperAccount.account_key == account_key)
+            )
+            if account is None:
+                raise
         return account
+
+    def _account_key(self) -> str:
+        if self._user_id is None:
+            return self._settings.paper_trading_demo_account_key
+        return f"user:{self._user_id}"
 
     def _get_position(self, account_id: int, symbol: str) -> PaperPosition | None:
         return self._db.scalar(

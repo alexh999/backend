@@ -18,6 +18,7 @@ class PaperAccount(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     account_key: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), unique=True, index=True, nullable=True)
     currency: Mapped[str] = mapped_column(String(8))
     initial_cash: Mapped[Decimal] = mapped_column(Numeric(18, 4))
     available_cash: Mapped[Decimal] = mapped_column(Numeric(18, 4))
@@ -37,6 +38,20 @@ class PaperAccount(Base):
     )
     orders: Mapped[list[PaperOrder]] = relationship(back_populates="account")
     executions: Mapped[list[PaperExecution]] = relationship(back_populates="account")
+
+
+class PaperAccountResetEvent(Base):
+    __tablename__ = "paper_account_reset_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("paper_accounts.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    result: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
 
 
 class PaperPosition(Base):

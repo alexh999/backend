@@ -37,6 +37,8 @@ from app.integrations.pandaai.schemas import (
     PandaAIUsDetailRecord,
     PandaAIValuationSnapshot,
 )
+from app.modules.monitoring.models import MonitoringEventStatus, MonitoringServiceName
+from app.modules.monitoring.service import record_monitoring_event
 
 logger = logging.getLogger(__name__)
 
@@ -518,12 +520,17 @@ class PandaAIClient:
         last_error: Exception | None = None
 
         for attempt in range(1, retries + 1):
-            token = self._ensure_token(force_refresh=False)
-            headers = self._build_request_headers(token=token)
-            url = self._build_data_url(endpoint)
-            start = time.perf_counter()
+            start = 0.0
+            status_code: int | None = None
+            request_sent = False
+            request_recorded = False
 
             try:
+                token = self._ensure_token(force_refresh=False)
+                headers = self._build_request_headers(token=token)
+                url = self._build_data_url(endpoint)
+                start = time.perf_counter()
+                request_sent = True
                 status_code, response_headers, response_content = self._post_with_httpx(
                     url,
                     payload,
@@ -540,6 +547,16 @@ class PandaAIClient:
                 )
 
                 if status_code == 401:
+                    _record_pandaai_monitoring_event(
+                        self._settings,
+                        endpoint=endpoint,
+                        status=MonitoringEventStatus.FAILURE,
+                        duration_ms=duration_ms,
+                        http_status_code=status_code,
+                        error_type="HTTP_401",
+                        error_message="PandaAI data request returned HTTP 401.",
+                    )
+                    request_recorded = True
                     self._ensure_token(force_refresh=True)
                     continue
 
@@ -550,11 +567,38 @@ class PandaAIClient:
                     response_headers.get("Content-Encoding", ""),
                 )
                 if token_expired:
+                    _record_pandaai_monitoring_event(
+                        self._settings,
+                        endpoint=endpoint,
+                        status=MonitoringEventStatus.FAILURE,
+                        duration_ms=duration_ms,
+                        http_status_code=status_code,
+                        error_type="TOKEN_EXPIRED",
+                        error_message="PandaAI data token expired.",
+                    )
+                    request_recorded = True
                     self._ensure_token(force_refresh=True)
                     continue
+                _record_pandaai_monitoring_event(
+                    self._settings,
+                    endpoint=endpoint,
+                    status=MonitoringEventStatus.SUCCESS,
+                    duration_ms=duration_ms,
+                    http_status_code=status_code,
+                )
                 return parsed_data
             except (httpx.HTTPError, ValueError, PandaAIIntegrationError) as exc:
                 last_error = exc
+                if request_sent and not request_recorded:
+                    _record_pandaai_monitoring_event(
+                        self._settings,
+                        endpoint=endpoint,
+                        status=MonitoringEventStatus.FAILURE,
+                        duration_ms=int((time.perf_counter() - start) * 1000),
+                        http_status_code=status_code,
+                        error_type=type(exc).__name__,
+                        error_message=exc,
+                    )
                 if attempt >= retries:
                     break
                 time.sleep(min(0.5 * attempt, 2.0))
@@ -1059,3 +1103,25 @@ def _decode_text_preview(payload: bytes) -> str:
 
 def get_pandaai_client(settings: Settings | None = None) -> PandaAIClient:
     return PandaAIClient(settings or get_settings())
+
+
+def _record_pandaai_monitoring_event(
+    settings: Settings,
+    *,
+    endpoint: str,
+    status: MonitoringEventStatus,
+    duration_ms: int,
+    http_status_code: int | None = None,
+    error_type: str | None = None,
+    error_message: object | None = None,
+) -> None:
+    record_monitoring_event(
+        service=MonitoringServiceName.PANDAAI,
+        endpoint=endpoint,
+        status=status,
+        duration_ms=duration_ms,
+        http_status_code=http_status_code,
+        error_type=error_type,
+        error_message=error_message,
+        settings=settings,
+    )

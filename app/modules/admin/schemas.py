@@ -5,6 +5,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.modules.admin.models import AdminAuditAction
 from app.modules.activity.schemas import UserActivitySummaryResponse
+from app.modules.forum.models import ForumContentStatus
+from app.modules.forum.schemas import ForumPostResponse
+from app.modules.monitoring.schemas import SystemMonitoringSummaryResponse
 from app.modules.users.schemas import UserResponse
 
 
@@ -39,6 +42,11 @@ SAFE_AUDIT_METADATA_KEYS = {
     "new_status",
     "previous_role",
     "new_role",
+    "content_type",
+    "content_id",
+    "previous_moderation_status",
+    "new_moderation_status",
+    "reason",
 }
 
 
@@ -72,3 +80,22 @@ class AdminAuditLogListResponse(BaseModel):
 
 class AdminUserActivitySummaryResponse(UserActivitySummaryResponse):
     pass
+
+
+class AdminSystemMonitoringResponse(SystemMonitoringSummaryResponse):
+    pass
+
+
+class AdminContentModerationListResponse(BaseModel):
+    items: list[ForumPostResponse]
+    total: int = Field(ge=0)
+    total_pages: int = Field(ge=1)
+    page: int = Field(ge=1)
+    page_size: int = Field(ge=1, le=100)
+
+
+class AdminContentModerationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: ForumContentStatus
+    reason: str | None = Field(default=None, max_length=255)

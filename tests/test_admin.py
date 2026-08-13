@@ -16,6 +16,7 @@ from app.db.session import get_db
 from app.main import create_app
 from app.modules.admin import service as admin_service
 from app.modules.admin.models import AdminAuditAction, AdminAuditLog
+from app.modules.forum.models import ForumContentStatus, ForumPost
 from app.modules.users.models import User, UserRole, UserStatus
 from app.modules.users.service import create_user
 
@@ -892,3 +893,129 @@ def test_admin_audit_logs_reject_missing_regular_and_disabled_admin(admin_contex
         "/api/v1/admin/audit-logs",
         headers=_authorization(disabled_admin, settings),
     ).status_code == 401
+
+
+def test_forum_posts_default_pending_and_are_hidden_from_public_list(admin_context) -> None:
+    client, session_factory, settings = admin_context
+    user = _create_user(session_factory, username="forum-user")
+    headers = _authorization(user, settings)
+
+    created = client.post(
+        "/api/v1/forum/posts",
+        json={"content": "<script>alert(1)</script> Real question", "topic_label": "Risk"},
+        headers=headers,
+    )
+    public = client.get("/api/v1/forum/posts")
+    mine = client.get("/api/v1/forum/me/posts", headers=headers)
+
+    assert created.status_code == 201
+    assert created.json()["status"] == "PENDING"
+    assert public.status_code == 200
+    assert public.json()["items"] == []
+    assert mine.status_code == 200
+    assert mine.json()["items"][0]["status"] == "PENDING"
+    assert mine.json()["items"][0]["content"] == "<script>alert(1)</script> Real question"
+    with session_factory() as db:
+        post = db.scalar(select(ForumPost))
+        assert post is not None
+        assert post.status == ForumContentStatus.PENDING
+
+
+def test_admin_content_moderation_approves_rejects_hides_and_restores_posts(admin_context) -> None:
+    client, session_factory, settings = admin_context
+    admin = _create_user(session_factory, username="moderator", role=UserRole.ADMIN)
+    author = _create_user(session_factory, username="author")
+    admin_headers = _authorization(admin, settings)
+    author_headers = _authorization(author, settings)
+
+    pending = client.post(
+        "/api/v1/forum/posts",
+        json={"content": "Please review this", "topic_label": "General"},
+        headers=author_headers,
+    ).json()
+
+    listed = client.get(
+        "/api/v1/admin/content-moderation/posts?status=PENDING&author=auth&keyword=review",
+        headers=admin_headers,
+    )
+    hidden_while_pending = client.patch(
+        f"/api/v1/admin/content-moderation/posts/{pending['id']}",
+        json={"status": "HIDDEN", "reason": "Not published yet"},
+        headers=admin_headers,
+    )
+    approved = client.patch(
+        f"/api/v1/admin/content-moderation/posts/{pending['id']}",
+        json={"status": "APPROVED"},
+        headers=admin_headers,
+    )
+    public_after_approve = client.get("/api/v1/forum/posts")
+    hidden_without_reason = client.patch(
+        f"/api/v1/admin/content-moderation/posts/{pending['id']}",
+        json={"status": "HIDDEN"},
+        headers=admin_headers,
+    )
+    hidden = client.patch(
+        f"/api/v1/admin/content-moderation/posts/{pending['id']}",
+        json={"status": "HIDDEN", "reason": "Off-topic after publication"},
+        headers=admin_headers,
+    )
+    public_after_hide = client.get("/api/v1/forum/posts")
+    restored = client.patch(
+        f"/api/v1/admin/content-moderation/posts/{pending['id']}",
+        json={"status": "APPROVED"},
+        headers=admin_headers,
+    )
+
+    rejected_source = client.post(
+        "/api/v1/forum/posts",
+        json={"content": "Reject me", "topic_label": "General"},
+        headers=author_headers,
+    ).json()
+    rejected = client.patch(
+        f"/api/v1/admin/content-moderation/posts/{rejected_source['id']}",
+        json={"status": "REJECTED", "reason": "Contains unverifiable claim"},
+        headers=admin_headers,
+    )
+    mine = client.get("/api/v1/forum/me/posts", headers=author_headers)
+
+    assert listed.status_code == 200
+    assert listed.json()["total"] == 1
+    assert listed.json()["items"][0]["id"] == pending["id"]
+    assert hidden_while_pending.status_code == 422
+    assert approved.status_code == 200
+    assert approved.json()["status"] == "APPROVED"
+    assert public_after_approve.json()["items"][0]["id"] == pending["id"]
+    assert hidden_without_reason.status_code == 422
+    assert hidden.status_code == 200
+    assert hidden.json()["status"] == "HIDDEN"
+    assert public_after_hide.json()["items"] == []
+    assert restored.status_code == 200
+    assert restored.json()["status"] == "APPROVED"
+    assert rejected.status_code == 200
+    assert rejected.json()["status"] == "REJECTED"
+    assert rejected.json()["moderation_reason"] == "Contains unverifiable claim"
+    mine_by_id = {item["id"]: item for item in mine.json()["items"]}
+    assert mine_by_id[rejected_source["id"]]["moderation_reason"] == "Contains unverifiable claim"
+
+    with session_factory() as db:
+        logs = list(db.scalars(select(AdminAuditLog).order_by(AdminAuditLog.id)))
+    assert [log.action for log in logs] == [
+        AdminAuditAction.FORUM_POST_APPROVED,
+        AdminAuditAction.FORUM_POST_HIDDEN,
+        AdminAuditAction.FORUM_POST_RESTORED,
+        AdminAuditAction.FORUM_POST_REJECTED,
+    ]
+    assert logs[-1].metadata_["content_type"] == "forum_post"
+    assert logs[-1].metadata_["result"] == "success"
+    assert logs[-1].metadata_["reason"] == "Contains unverifiable claim"
+
+
+def test_content_moderation_rejects_non_admin_credentials(admin_context) -> None:
+    client, session_factory, settings = admin_context
+    user = _create_user(session_factory, username="regular")
+
+    assert client.get("/api/v1/admin/content-moderation/posts").status_code == 401
+    assert client.get(
+        "/api/v1/admin/content-moderation/posts",
+        headers=_authorization(user, settings),
+    ).status_code == 403

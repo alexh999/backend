@@ -5,6 +5,7 @@ from app.core.config import Settings, get_settings
 from app.core.cors import add_cors_middleware
 from app.core.errors import add_exception_handlers
 from app.core.logging import configure_logging
+from app.modules.monitoring.middleware import add_monitoring_middleware
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -18,6 +19,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     add_cors_middleware(app, settings)
     add_exception_handlers(app)
+    add_monitoring_middleware(app, settings)
     app.include_router(api_router, prefix=settings.api_v1_prefix)
 
     return app

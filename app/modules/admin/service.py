@@ -11,6 +11,14 @@ from sqlalchemy.orm import Session
 
 from app.modules.admin.models import AdminAuditAction, AdminAuditLog
 from app.modules.admin.schemas import UserStatistics
+from app.modules.forum.models import ForumContentStatus, ForumPost
+from app.modules.forum.service import (
+    ForumModerationError,
+    ForumPostNotFoundError,
+    ForumPostPage,
+    list_admin_posts,
+    moderate_post,
+)
 from app.modules.users.models import User, UserRole, UserStatus, utc_now
 from app.modules.users.service import UserServiceError, create_user
 
@@ -216,6 +224,71 @@ def list_audit_logs(
     return AuditLogPage(items=items, total=int(total))
 
 
+def list_content_moderation_posts(
+    db: Session,
+    *,
+    page: int,
+    page_size: int,
+    status: ForumContentStatus | None = None,
+    author: str | None = None,
+    keyword: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> ForumPostPage:
+    return list_admin_posts(
+        db,
+        page=page,
+        page_size=page_size,
+        status=status,
+        author=author,
+        keyword=keyword,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+
+def moderate_forum_post(
+    db: Session,
+    *,
+    post_id: int,
+    actor: User,
+    status: ForumContentStatus,
+    reason: str | None = None,
+) -> ForumPost:
+    post = db.get(ForumPost, post_id)
+    if post is None:
+        raise ForumPostNotFoundError("Forum post not found.")
+    previous_status = post.status
+    try:
+        updated_post = moderate_post(
+            db,
+            post_id=post_id,
+            moderator=actor,
+            status=status,
+            reason=reason,
+        )
+        _add_audit_log(
+            db,
+            actor=actor,
+            action=_forum_moderation_action(previous_status, status),
+            target=updated_post.author,
+            metadata={
+                "content_type": "forum_post",
+                "content_id": updated_post.id,
+                "result": "success",
+                "previous_moderation_status": previous_status.value,
+                "new_moderation_status": updated_post.status.value,
+                "reason": (updated_post.moderation_reason or "")[:120],
+            },
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    db.refresh(updated_post)
+    return updated_post
+
+
 def _normalize_search_query(query: str | None) -> str | None:
     if query is None:
         return None
@@ -237,6 +310,21 @@ def _active_admin_count(db: Session) -> int:
         )
         or 0
     )
+
+
+def _forum_moderation_action(
+    previous_status: ForumContentStatus,
+    status: ForumContentStatus,
+) -> AdminAuditAction:
+    if status == ForumContentStatus.APPROVED:
+        if previous_status == ForumContentStatus.HIDDEN:
+            return AdminAuditAction.FORUM_POST_RESTORED
+        return AdminAuditAction.FORUM_POST_APPROVED
+    if status == ForumContentStatus.REJECTED:
+        return AdminAuditAction.FORUM_POST_REJECTED
+    if status == ForumContentStatus.HIDDEN:
+        return AdminAuditAction.FORUM_POST_HIDDEN
+    raise ForumModerationError("Unsupported moderation action.")
 
 
 def _add_audit_log(

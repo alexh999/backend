@@ -34,10 +34,12 @@ from app.modules.paper_trading.quote_provider import (
 )
 from app.modules.paper_trading.models import (
     PaperAccount,
+    PaperAccountResetEvent,
     PaperExecution,
     PaperOrder,
     PaperPosition,
 )
+from app.modules.paper_trading.service import PaperTradingService
 from app.modules.users.models import User, UserRole, UserStatus
 from app.modules.users.service import create_user
 
@@ -676,3 +678,134 @@ def test_failed_paper_buy_rolls_back_account_created_in_request(activity_context
         assert db.scalar(select(func.count(PaperOrder.id))) == 0
         assert db.scalar(select(func.count(PaperExecution.id))) == 0
         assert db.scalar(select(func.count(UserDailyActivity.id))) == 0
+
+
+def test_paper_reset_requires_regular_user_and_clears_owned_account(activity_context) -> None:
+    client, session_factory, settings = activity_context
+    user = _create_user(session_factory, username="regular-user")
+    admin = _create_user(session_factory, username="admin-user", role=UserRole.ADMIN)
+    user_headers = _authorization(user, settings)
+
+    buy = client.post(
+        "/api/v1/paper-trading/orders",
+        json={"symbol": "00700.HK", "side": "buy", "quantity": 3},
+        headers=user_headers,
+    )
+    reset_missing = client.post("/api/v1/paper-trading/reset")
+    reset_admin = client.post(
+        "/api/v1/paper-trading/reset",
+        headers=_authorization(admin, settings),
+    )
+    reset = client.post("/api/v1/paper-trading/reset", headers=user_headers)
+
+    assert buy.status_code == 200
+    assert reset_missing.status_code == 401
+    assert reset_admin.status_code == 403
+    assert reset.status_code == 200
+    payload = reset.json()
+    assert payload["account"]["account_key"] == f"user:{user.id}"
+    assert payload["summary"]["initial_cash"] == 200000.0
+    assert payload["summary"]["available_cash"] == 200000.0
+    assert payload["summary"]["market_value"] == 0.0
+    assert payload["summary"]["total_profit_loss"] == 0.0
+    assert payload["positions"] == []
+
+    with session_factory() as db:
+        account = db.scalar(select(PaperAccount).where(PaperAccount.user_id == user.id))
+        assert account is not None
+        assert account.account_key == f"user:{user.id}"
+        assert account.available_cash == Decimal("200000.0000")
+        assert db.scalar(select(func.count(PaperPosition.id))) == 0
+        assert db.scalar(select(func.count(PaperOrder.id))) == 0
+        assert db.scalar(select(func.count(PaperExecution.id))) == 0
+        reset_event = db.scalar(select(PaperAccountResetEvent))
+        assert reset_event is not None
+        assert reset_event.user_id == user.id
+        assert reset_event.result == "success"
+
+
+def test_paper_reset_is_user_scoped_and_repeatable(activity_context) -> None:
+    client, session_factory, settings = activity_context
+    first_user = _create_user(session_factory, username="first-user")
+    second_user = _create_user(session_factory, username="second-user")
+    first_headers = _authorization(first_user, settings)
+    second_headers = _authorization(second_user, settings)
+
+    assert client.post(
+        "/api/v1/paper-trading/orders",
+        json={"symbol": "00700.HK", "side": "buy", "quantity": 5},
+        headers=first_headers,
+    ).status_code == 200
+    assert client.post(
+        "/api/v1/paper-trading/orders",
+        json={"symbol": "00700.HK", "side": "buy", "quantity": 2},
+        headers=second_headers,
+    ).status_code == 200
+
+    first_reset = client.post("/api/v1/paper-trading/reset", headers=first_headers)
+    repeated_reset = client.post("/api/v1/paper-trading/reset", headers=first_headers)
+
+    assert first_reset.status_code == 200
+    assert repeated_reset.status_code == 200
+    with session_factory() as db:
+        first_account = db.scalar(select(PaperAccount).where(PaperAccount.user_id == first_user.id))
+        second_account = db.scalar(select(PaperAccount).where(PaperAccount.user_id == second_user.id))
+        assert first_account is not None
+        assert second_account is not None
+        assert first_account.available_cash == Decimal("200000.0000")
+        assert second_account.available_cash == Decimal("199240.0000")
+        assert db.scalar(select(func.count(PaperAccount.id))) == 2
+        assert db.scalar(select(func.count(PaperOrder.id))) == 1
+        assert db.scalar(select(func.count(PaperAccountResetEvent.id))) == 2
+
+
+def test_paper_reset_failure_rolls_back_all_business_changes(
+    activity_context,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, session_factory, settings = activity_context
+    user = _create_user(session_factory, username="rollback-user")
+    headers = _authorization(user, settings)
+
+    assert client.post(
+        "/api/v1/paper-trading/orders",
+        json={"symbol": "00700.HK", "side": "buy", "quantity": 3},
+        headers=headers,
+    ).status_code == 200
+
+    with session_factory() as db:
+        account = db.scalar(select(PaperAccount).where(PaperAccount.user_id == user.id))
+        assert account is not None
+        original_cash = account.available_cash
+        original_counts = (
+            db.scalar(select(func.count(PaperPosition.id))),
+            db.scalar(select(func.count(PaperOrder.id))),
+            db.scalar(select(func.count(PaperExecution.id))),
+        )
+        service = PaperTradingService(
+            db,
+            StaticQuoteProvider(),
+            settings,
+            user_id=user.id,
+        )
+
+        def fail_response_build(_account: PaperAccount):
+            raise RuntimeError("reset response build failed")
+
+        monkeypatch.setattr(service, "_build_portfolio", fail_response_build)
+        with pytest.raises(RuntimeError, match="reset response build failed"):
+            service.reset_account()
+
+    with session_factory() as db:
+        account = db.scalar(select(PaperAccount).where(PaperAccount.user_id == user.id))
+        assert account is not None
+        assert account.available_cash == original_cash
+        assert (
+            db.scalar(select(func.count(PaperPosition.id))),
+            db.scalar(select(func.count(PaperOrder.id))),
+            db.scalar(select(func.count(PaperExecution.id))),
+        ) == original_counts
+        events = list(db.scalars(select(PaperAccountResetEvent)))
+        assert len(events) == 1
+        assert events[0].user_id == user.id
+        assert events[0].result == "failure"
