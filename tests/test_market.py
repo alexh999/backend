@@ -11,6 +11,7 @@ from app.integrations.pandaai.schemas import (
     PandaAIDailyBar,
     PandaAIValuationSnapshot,
 )
+from app.integrations.yahoo_finance.schemas import YahooFinanceDailyBar
 from app.main import create_app
 from app.modules.market.service import MarketStockService, get_market_stock_service
 
@@ -419,6 +420,68 @@ def test_market_stock_service_returns_daily_bars_for_quant() -> None:
     assert bars[-1].close == 220.3
     assert bars[-1].volume == 67_000_000
     assert bars[-1].amount == 13_700_000_000
+
+
+def test_daily_bars_fall_back_to_yahoo_finance() -> None:
+    class FailingDailyPandaAIClient:
+        def get_cn_daily(
+            self,
+            symbol: str,
+            *,
+            start_date: date,
+            end_date: date,
+        ) -> list[PandaAIDailyBar]:
+            raise PandaAIIntegrationError("PandaAI permission denied")
+
+    class StubYahooFinanceClient:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, date, date]] = []
+
+        def get_daily_bars(
+            self,
+            symbol: str,
+            *,
+            start_date: date,
+            end_date: date,
+        ) -> list[YahooFinanceDailyBar]:
+            self.calls.append((symbol, start_date, end_date))
+            return [
+                YahooFinanceDailyBar(
+                    symbol="600519.SH",
+                    trade_date=date(2026, 8, 12),
+                    open=1346.5,
+                    high=1356.88,
+                    low=1332.51,
+                    close=1343.0,
+                    volume=3_505_960,
+                ),
+                YahooFinanceDailyBar(
+                    symbol="600519.SH",
+                    trade_date=date(2026, 8, 13),
+                    open=1338.0,
+                    high=1359.6,
+                    low=1337.0,
+                    close=1355.29,
+                    volume=3_235_348,
+                ),
+            ]
+
+    yahoo_client = StubYahooFinanceClient()
+    service = MarketStockService(
+        FailingDailyPandaAIClient(),
+        yahoo_finance_client=yahoo_client,
+        symbols=("600519.SH",),
+    )
+
+    bars = service.get_daily_bars("600519", limit=2)
+
+    assert len(yahoo_client.calls) == 1
+    assert yahoo_client.calls[0][0] == "600519.SH"
+    assert len(bars) == 2
+    assert bars[0].ticker == "600519.SH"
+    assert bars[0].previous_close is None
+    assert bars[1].previous_close == 1343.0
+    assert bars[1].close == 1355.29
 
 
 def test_market_stock_service_returns_lightweight_stock_snapshot() -> None:
