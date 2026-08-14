@@ -127,3 +127,78 @@ class QuantStockAnalysis(BaseModel):
     rsi14: float | None = None
     volume: VolumeAnalysisResult | None = None
     technical_summary: TechnicalSummary
+
+
+class QuantMarket(StrEnum):
+    A_SHARE = "a_share"
+    HONG_KONG = "hong_kong"
+    UNITED_STATES = "united_states"
+
+
+class FactorIcAnalysisRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    market: QuantMarket
+    symbols: tuple[str, ...] = Field(min_length=3, max_length=20)
+    history_limit: int = Field(default=120, ge=40, le=500)
+    holding_period: int = Field(default=5, ge=1, le=20)
+    minimum_lookback: int = Field(default=35, ge=35, le=120)
+    minimum_sample_size: int = Field(default=3, ge=3, le=20)
+
+    @model_validator(mode="after")
+    def normalize_and_validate_symbols(self) -> "FactorIcAnalysisRequest":
+        normalized_symbols = tuple(
+            symbol.strip().upper()
+            for symbol in self.symbols
+        )
+
+        if any(not symbol for symbol in normalized_symbols):
+            raise ValueError("stock symbols must not be blank")
+
+        if len(set(normalized_symbols)) != len(normalized_symbols):
+            raise ValueError("stock symbols must not be duplicated")
+
+        if self.minimum_sample_size > len(normalized_symbols):
+            raise ValueError(
+                "minimum sample size cannot exceed the stock count"
+            )
+
+        self.symbols = normalized_symbols
+        return self
+
+
+class FactorIcPeriodResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    date: date
+    sample_size: int = Field(ge=0)
+    information_coefficient: float | None = None
+    rank_information_coefficient: float | None = None
+
+
+class FactorIcResultResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    factor_id: str
+    periods: tuple[FactorIcPeriodResponse, ...]
+    available_period_count: int = Field(ge=0)
+    average_information_coefficient: float | None = None
+    average_rank_information_coefficient: float | None = None
+    positive_information_coefficient_rate: float | None = None
+    positive_rank_information_coefficient_rate: float | None = None
+    ic_information_ratio: float | None = None
+    rank_ic_information_ratio: float | None = None
+    average_sample_size: float = Field(ge=0)
+    reliability: str
+
+
+class FactorIcAnalysisResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    market: QuantMarket
+    symbols: tuple[str, ...]
+    history_limit: int
+    holding_period: int
+    minimum_lookback: int
+    minimum_sample_size: int
+    factor_results: tuple[FactorIcResultResponse, ...]

@@ -303,3 +303,103 @@ def test_symbol_analysis_endpoint_returns_complete_payload() -> None:
     assert payload["rsi14"] is not None
     assert payload["volume"] is not None
     assert payload["technical_summary"]["trend"] == "upward"
+
+def test_factor_ic_analysis_endpoint_returns_complete_payload() -> None:
+    class StubMarketService:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, int]] = []
+
+        def get_daily_bars(
+            self,
+            symbol: str,
+            limit: int,
+        ) -> list[MarketDailyBarData]:
+            self.calls.append((symbol, limit))
+
+            price_offset = {
+                "AAPL": 0.8,
+                "MSFT": 0.4,
+                "NVDA": -0.2,
+            }[symbol]
+
+            return [
+                MarketDailyBarData(
+                    ticker=symbol,
+                    trade_date=date(2026, 1, 1) + timedelta(days=index),
+                    open=100.0 + price_offset * index,
+                    high=101.0 + price_offset * index,
+                    low=99.0 + price_offset * index,
+                    close=100.0 + price_offset * index,
+                    previous_close=(
+                        None
+                        if index == 0
+                        else 100.0 + price_offset * (index - 1)
+                    ),
+                    volume=10_000 + index * 10,
+                )
+                for index in range(limit)
+            ]
+
+    market_service = StubMarketService()
+    app = create_app()
+    app.dependency_overrides[get_market_stock_service] = lambda: market_service
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/v1/quant/factor-ic-analysis",
+        json={
+            "market": "united_states",
+            "symbols": ["AAPL", "MSFT", "NVDA"],
+            "history_limit": 45,
+            "holding_period": 5,
+            "minimum_lookback": 35,
+            "minimum_sample_size": 3,
+        },
+    )
+
+    assert response.status_code == 200
+    assert market_service.calls == [
+        ("AAPL", 45),
+        ("MSFT", 45),
+        ("NVDA", 45),
+    ]
+
+    payload = response.json()
+
+    assert payload["market"] == "united_states"
+    assert payload["symbols"] == ["AAPL", "MSFT", "NVDA"]
+    assert payload["history_limit"] == 45
+    assert [
+        result["factor_id"]
+        for result in payload["factor_results"]
+    ] == ["trend", "momentum", "volume"]
+    assert all(
+        result["periods"]
+        for result in payload["factor_results"]
+    )
+
+def test_factor_ic_analysis_endpoint_rejects_mixed_markets() -> None:
+    class UnexpectedMarketService:
+        def get_daily_bars(
+            self,
+            symbol: str,
+            limit: int,
+        ) -> list[MarketDailyBarData]:
+            raise AssertionError("Invalid symbols should be rejected first")
+
+    app = create_app()
+    app.dependency_overrides[get_market_stock_service] = (
+        lambda: UnexpectedMarketService()
+    )
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/v1/quant/factor-ic-analysis",
+        json={
+            "market": "united_states",
+            "symbols": ["AAPL", "MSFT", "0700.HK"],
+        },
+    )
+
+    assert response.status_code == 422
+    assert "0700.HK" in response.json()["detail"]
