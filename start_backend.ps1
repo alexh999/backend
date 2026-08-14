@@ -6,6 +6,7 @@ param(
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $scriptRoot
+$env:YF_DISABLE_CURL_CFFI = "1"
 
 $pythonExe = Join-Path $scriptRoot ".venv\Scripts\python.exe"
 $arguments = @("-m", "uvicorn", "app.main:app", "--host", $BindHost, "--port", $Port)

@@ -19,6 +19,10 @@ from app.integrations.pandaai.schemas import (
     PandaAIIndexProfile,
     PandaAIValuationSnapshot,
 )
+from app.integrations.yahoo_finance.client import (
+    YahooFinanceClient,
+    YahooFinanceIntegrationError,
+)
 from app.modules.market.schemas import (
     MarketChartCandleData,
     MarketDailyBarData,
@@ -89,9 +93,13 @@ class MarketStockService:
     def __init__(
         self,
         pandaai_client: PandaAIClient,
+        yahoo_finance_client: YahooFinanceClient | None = None,
         symbols: tuple[str, ...] = DEFAULT_MARKET_SYMBOLS,
     ) -> None:
         self._pandaai_client = pandaai_client
+        self._yahoo_finance_client = (
+            yahoo_finance_client or YahooFinanceClient()
+        )
         self._symbols = symbols
 
     def get_market_index_overview(self) -> MarketIndexOverviewResponse:
@@ -186,11 +194,29 @@ class MarketStockService:
                     start_date=start_date,
                     end_date=date.today(),
                 )
-        except PandaAIIntegrationError as exc:
-            raise ApplicationError(
-                f"Unable to load market data for {ticker}.",
-                status_code=502,
-            ) from exc
+        except PandaAIIntegrationError as pandaai_error:
+            logger.warning(
+                "PandaAI daily bars failed for %s; using Yahoo Finance fallback: %s",
+                ticker,
+                pandaai_error,
+            )
+
+            try:
+                history = self._yahoo_finance_client.get_daily_bars(
+                    ticker,
+                    start_date=start_date,
+                    end_date=date.today(),
+                )
+            except YahooFinanceIntegrationError as yahoo_error:
+                logger.warning(
+                    "Yahoo Finance daily bars also failed for %s: %s",
+                    ticker,
+                    yahoo_error,
+                )
+                raise ApplicationError(
+                    f"Unable to load market data for {ticker}.",
+                    status_code=502,
+                ) from yahoo_error
 
         history = sorted(history, key=lambda item: item.trade_date)
         selected_history = history[-limit:]

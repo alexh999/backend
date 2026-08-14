@@ -14,6 +14,7 @@ dependencies = [
     "pydantic-settings>=2.3,<3.0",
     "pyarrow>=17,<26",
     "uvicorn>=0.30,<1.0",
+    "yfinance>=1.6,<2.0",
     "zstandard>=0.23,<1.0",
 ]
 
