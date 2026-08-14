@@ -1,0 +1,20 @@
+INFO:     127.0.0.1:25366 - "POST /api/v1/ai/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56733 - "GET /api/v1/market/indexes/overview HTTP/1.1" 502 Bad Gateway
+INFO:     127.0.0.1:56734 - "GET /api/v1/market/stocks HTTP/1.1" 502 Bad Gateway
+INFO:     127.0.0.1:15317 - "POST /api/v1/ai/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38506 - "GET /api/v1/quant/stocks/300750/analysis?limit=60 HTTP/1.1" 502 Bad Gateway
+INFO:     127.0.0.1:27906 - "GET /api/v1/market/stocks/601318.SH/detail HTTP/1.1" 502 Bad Gateway
+INFO:     127.0.0.1:35658 - "GET /api/v1/market/stocks/601318.SH/detail HTTP/1.1" 502 Bad Gateway
+INFO:     127.0.0.1:10145 - "GET /api/v1/market/stocks/AAPL/detail HTTP/1.1" 502 Bad Gateway
+INFO:     127.0.0.1:27645 - "GET /api/v1/market/stocks/AAPL/detail HTTP/1.1" 502 Bad Gateway
+INFO:     127.0.0.1:24103 - "GET /api/v1/market/stocks/TSLA/detail HTTP/1.1" 502 Bad Gateway
+INFO:     127.0.0.1:6542 - "GET /api/v1/market/stocks/NVDA/detail HTTP/1.1" 502 Bad Gateway
+INFO:     127.0.0.1:31382 - "GET /api/v1/market/stocks/MSFT/detail HTTP/1.1" 502 Bad Gateway
+INFO:     127.0.0.1:14667 - "GET /api/v1/market/stocks/000858.SZ/detail HTTP/1.1" 502 Bad Gateway
+INFO:     127.0.0.1:8939 - "GET /api/v1/market/indexes/overview HTTP/1.1" 502 Bad Gateway
+INFO:     127.0.0.1:8940 - "GET /api/v1/market/stocks HTTP/1.1" 502 Bad Gateway
+INFO:     127.0.0.1:13150 - "GET /api/v1/market/stocks/AAPL/detail HTTP/1.1" 502 Bad Gateway
+INFO:     127.0.0.1:3924 - "GET /api/v1/market/indexes/overview HTTP/1.1" 502 Bad Gateway
+INFO:     127.0.0.1:3925 - "GET /api/v1/market/stocks HTTP/1.1" 502 Bad Gateway
+INFO:     127.0.0.1:42155 - "GET /api/v1/market/indexes/overview HTTP/1.1" 502 Bad Gateway
+INFO:     127.0.0.1:42156 - "GET /api/v1/market/stocks HTTP/1.1" 502 Bad Gateway

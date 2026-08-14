@@ -1,0 +1,332 @@
+INFO:     Started server process [15460]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2026-08-03 17:35:14,755 INFO app.integrations.siliconflow.client Calling SiliconFlow chat completions endpoint
+2026-08-03 17:35:19,305 INFO httpx HTTP Request: POST https://api.siliconflow.cn/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-03 17:35:53,329 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 17:35:53,329 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 17:35:53,431 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:53,431 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:53,431 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:53,432 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:53,432 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:53,432 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/index/getIndexSymbolData "HTTP/1.1 200 OK"
+2026-08-03 17:35:53,432 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:53,432 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=101
+2026-08-03 17:35:53,433 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=100
+2026-08-03 17:35:53,434 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=101
+2026-08-03 17:35:53,434 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=101
+2026-08-03 17:35:53,434 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=103
+2026-08-03 17:35:53,434 INFO app.integrations.pandaai.client pandaai_request endpoint=/index/getIndexSymbolData status=200 attempt=1 duration_ms=103
+2026-08-03 17:35:53,435 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=102
+2026-08-03 17:35:53,976 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:53,976 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:53,976 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=40
+2026-08-03 17:35:53,977 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:53,977 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=40
+2026-08-03 17:35:53,977 WARNING app.modules.market.service pandaai_stock_list_skip symbol=AMZN error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 17:35:53,977 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:53,977 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/index/getIndexSymbolData "HTTP/1.1 200 OK"
+2026-08-03 17:35:53,977 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:53,977 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=42
+2026-08-03 17:35:53,977 WARNING app.modules.market.service pandaai_stock_list_skip symbol=000001.SZ error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:35:53,979 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:53,980 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=43
+2026-08-03 17:35:53,980 INFO app.integrations.pandaai.client pandaai_request endpoint=/index/getIndexSymbolData status=200 attempt=2 duration_ms=43
+2026-08-03 17:35:53,980 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=43
+2026-08-03 17:35:53,980 WARNING app.modules.market.service pandaai_stock_list_skip symbol=TSLA error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 17:35:53,981 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=44
+2026-08-03 17:35:53,981 WARNING app.modules.market.service pandaai_stock_list_skip symbol=AAPL error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 17:35:53,982 WARNING app.modules.market.service pandaai_stock_list_skip symbol=MSFT error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 17:35:53,984 WARNING app.modules.market.service pandaai_stock_list_skip symbol=NVDA error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 17:35:54,018 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:54,018 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:54,019 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=37
+2026-08-03 17:35:54,019 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=35
+2026-08-03 17:35:54,019 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:54,019 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:54,020 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=39
+2026-08-03 17:35:54,020 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=41
+2026-08-03 17:35:54,020 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:54,020 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=36
+2026-08-03 17:35:54,022 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:54,022 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=36
+2026-08-03 17:35:54,556 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:54,557 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=37
+2026-08-03 17:35:54,560 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:54,560 WARNING app.modules.market.service pandaai_stock_list_skip symbol=000858.SZ error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:35:54,560 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=40
+2026-08-03 17:35:54,561 WARNING app.modules.market.service pandaai_stock_list_skip symbol=600519.SH error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:35:54,569 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:54,569 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:54,569 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:54,569 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:35:54,570 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=49
+2026-08-03 17:35:54,570 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=48
+2026-08-03 17:35:54,571 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=48
+2026-08-03 17:35:54,571 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=48
+2026-08-03 17:35:54,571 WARNING app.modules.market.service pandaai_stock_list_skip symbol=601318.SH error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:35:54,571 WARNING app.modules.market.service pandaai_stock_list_skip symbol=300750.SZ error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:35:54,572 WARNING app.modules.market.service pandaai_stock_list_skip symbol=601398.SH error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:35:54,572 WARNING app.modules.market.service pandaai_stock_list_skip symbol=600036.SH error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:35:57,127 INFO app.integrations.siliconflow.client Calling SiliconFlow chat completions endpoint
+2026-08-03 17:36:05,969 INFO httpx HTTP Request: POST https://api.siliconflow.cn/v1/chat/completions "HTTP/1.1 200 OK"
+2026-08-03 17:36:31,382 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDaily "HTTP/1.1 200 OK"
+2026-08-03 17:36:31,383 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDaily status=200 attempt=1 duration_ms=139
+2026-08-03 17:36:31,937 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDaily "HTTP/1.1 200 OK"
+2026-08-03 17:36:31,940 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDaily status=200 attempt=2 duration_ms=56
+2026-08-03 17:40:14,998 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:40:15,000 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=87
+2026-08-03 17:40:15,551 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:40:15,562 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=60
+2026-08-03 17:40:17,140 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:40:17,142 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=41
+2026-08-03 17:40:17,713 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:40:17,715 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=71
+2026-08-03 17:40:21,314 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:40:21,316 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=38
+2026-08-03 17:40:21,855 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:40:21,865 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=47
+2026-08-03 17:40:23,438 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:40:23,439 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=39
+2026-08-03 17:40:23,986 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:40:23,987 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=46
+2026-08-03 17:40:25,554 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:40:25,555 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=36
+2026-08-03 17:40:26,092 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:40:26,103 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=47
+2026-08-03 17:40:27,675 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:40:27,686 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=51
+2026-08-03 17:40:28,222 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:40:28,224 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=36
+2026-08-03 17:40:44,011 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:40:44,013 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=96
+2026-08-03 17:40:44,559 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:40:44,559 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=45
+2026-08-03 17:42:10,164 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:42:10,165 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=98
+2026-08-03 17:42:10,705 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:42:10,705 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=40
+2026-08-03 17:47:09,764 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:09,764 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:09,764 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:09,764 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:09,764 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:09,764 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:09,764 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/index/getIndexSymbolData "HTTP/1.1 200 OK"
+2026-08-03 17:47:09,765 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=245
+2026-08-03 17:47:09,765 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=245
+2026-08-03 17:47:09,765 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=245
+2026-08-03 17:47:09,766 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=246
+2026-08-03 17:47:09,767 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=247
+2026-08-03 17:47:09,767 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=246
+2026-08-03 17:47:09,767 INFO app.integrations.pandaai.client pandaai_request endpoint=/index/getIndexSymbolData status=200 attempt=1 duration_ms=241
+2026-08-03 17:47:10,312 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,313 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,313 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,313 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,313 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/index/getIndexSymbolData "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,313 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,313 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,323 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=55
+2026-08-03 17:47:10,323 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=55
+2026-08-03 17:47:10,324 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=55
+2026-08-03 17:47:10,324 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=55
+2026-08-03 17:47:10,324 INFO app.integrations.pandaai.client pandaai_request endpoint=/index/getIndexSymbolData status=200 attempt=2 duration_ms=55
+2026-08-03 17:47:10,325 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=57
+2026-08-03 17:47:10,325 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=57
+2026-08-03 17:47:10,325 WARNING app.modules.market.service pandaai_stock_list_skip symbol=AAPL error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 17:47:10,326 WARNING app.modules.market.service pandaai_stock_list_skip symbol=AMZN error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 17:47:10,326 WARNING app.modules.market.service pandaai_stock_list_skip symbol=NVDA error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 17:47:10,326 WARNING app.modules.market.service pandaai_stock_list_skip symbol=000001.SZ error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:47:10,326 WARNING app.modules.market.service pandaai_stock_list_skip symbol=MSFT error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 17:47:10,327 WARNING app.modules.market.service pandaai_stock_list_skip symbol=TSLA error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 17:47:10,364 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,365 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=37
+2026-08-03 17:47:10,366 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,367 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,367 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=37
+2026-08-03 17:47:10,367 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=38
+2026-08-03 17:47:10,372 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,373 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=43
+2026-08-03 17:47:10,373 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,372 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,374 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=47
+2026-08-03 17:47:10,374 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=46
+2026-08-03 17:47:10,906 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,907 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=39
+2026-08-03 17:47:10,907 WARNING app.modules.market.service pandaai_stock_list_skip symbol=000858.SZ error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:47:10,912 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,913 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,913 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,913 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,913 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=38
+2026-08-03 17:47:10,914 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=48
+2026-08-03 17:47:10,914 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=46
+2026-08-03 17:47:10,914 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=38
+2026-08-03 17:47:10,914 WARNING app.modules.market.service pandaai_stock_list_skip symbol=300750.SZ error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:47:10,914 WARNING app.modules.market.service pandaai_stock_list_skip symbol=601318.SH error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:47:10,915 WARNING app.modules.market.service pandaai_stock_list_skip symbol=601398.SH error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:47:10,915 WARNING app.modules.market.service pandaai_stock_list_skip symbol=600519.SH error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:47:10,916 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:10,917 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=42
+2026-08-03 17:47:10,917 WARNING app.modules.market.service pandaai_stock_list_skip symbol=600036.SH error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:47:12,481 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:12,482 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=40
+2026-08-03 17:47:13,020 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:13,022 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=39
+2026-08-03 17:47:47,023 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,024 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,024 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/index/getIndexSymbolData "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,025 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=77
+2026-08-03 17:47:47,025 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=78
+2026-08-03 17:47:47,025 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,026 INFO app.integrations.pandaai.client pandaai_request endpoint=/index/getIndexSymbolData status=200 attempt=1 duration_ms=74
+2026-08-03 17:47:47,026 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=78
+2026-08-03 17:47:47,054 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,054 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,054 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,055 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=110
+2026-08-03 17:47:47,055 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=109
+2026-08-03 17:47:47,056 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=109
+2026-08-03 17:47:47,570 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,571 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,572 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=45
+2026-08-03 17:47:47,572 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=45
+2026-08-03 17:47:47,572 WARNING app.modules.market.service pandaai_stock_list_skip symbol=TSLA error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 17:47:47,572 WARNING app.modules.market.service pandaai_stock_list_skip symbol=AMZN error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 17:47:47,575 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,575 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=48
+2026-08-03 17:47:47,576 WARNING app.modules.market.service pandaai_stock_list_skip symbol=000001.SZ error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:47:47,581 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/index/getIndexSymbolData "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,582 INFO app.integrations.pandaai.client pandaai_request endpoint=/index/getIndexSymbolData status=200 attempt=2 duration_ms=54
+2026-08-03 17:47:47,600 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,601 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,601 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,601 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=45
+2026-08-03 17:47:47,601 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=44
+2026-08-03 17:47:47,602 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=45
+2026-08-03 17:47:47,602 WARNING app.modules.market.service pandaai_stock_list_skip symbol=AAPL error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 17:47:47,602 WARNING app.modules.market.service pandaai_stock_list_skip symbol=NVDA error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 17:47:47,602 WARNING app.modules.market.service pandaai_stock_list_skip symbol=MSFT error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 17:47:47,610 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,610 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=38
+2026-08-03 17:47:47,615 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,615 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=42
+2026-08-03 17:47:47,620 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,620 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=44
+2026-08-03 17:47:47,638 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,638 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,638 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=36
+2026-08-03 17:47:47,638 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=36
+2026-08-03 17:47:47,642 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:47,642 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=39
+2026-08-03 17:47:48,155 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:48,155 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:48,156 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=40
+2026-08-03 17:47:48,157 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=44
+2026-08-03 17:47:48,157 WARNING app.modules.market.service pandaai_stock_list_skip symbol=300750.SZ error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:47:48,157 WARNING app.modules.market.service pandaai_stock_list_skip symbol=601318.SH error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:47:48,165 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:48,165 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=44
+2026-08-03 17:47:48,166 WARNING app.modules.market.service pandaai_stock_list_skip symbol=000858.SZ error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:47:48,179 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:48,179 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:48,179 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=39
+2026-08-03 17:47:48,180 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=39
+2026-08-03 17:47:48,180 WARNING app.modules.market.service pandaai_stock_list_skip symbol=601398.SH error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:47:48,180 WARNING app.modules.market.service pandaai_stock_list_skip symbol=600519.SH error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 17:47:48,184 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 17:47:48,185 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=42
+2026-08-03 17:47:48,185 WARNING app.modules.market.service pandaai_stock_list_skip symbol=600036.SH error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 18:27:20,636 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:20,693 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:20,694 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=55
+2026-08-03 18:27:20,740 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:20,795 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:20,796 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=54
+2026-08-03 18:27:20,811 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:20,854 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:20,856 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=43
+2026-08-03 18:27:20,888 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:20,934 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:20,936 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=46
+2026-08-03 18:27:20,964 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,019 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,020 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=1 duration_ms=54
+2026-08-03 18:27:21,035 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,121 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,121 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,121 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=84
+2026-08-03 18:27:21,164 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/index/getIndexSymbolData "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,166 INFO app.integrations.pandaai.client pandaai_request endpoint=/index/getIndexSymbolData status=200 attempt=1 duration_ms=44
+2026-08-03 18:27:21,271 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,317 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,319 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=46
+2026-08-03 18:27:21,319 WARNING app.modules.market.service pandaai_stock_list_skip symbol=AAPL error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 18:27:21,391 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,466 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,467 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=75
+2026-08-03 18:27:21,467 WARNING app.modules.market.service pandaai_stock_list_skip symbol=MSFT error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 18:27:21,493 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,532 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,533 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=40
+2026-08-03 18:27:21,562 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,606 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,607 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=43
+2026-08-03 18:27:21,608 WARNING app.modules.market.service pandaai_stock_list_skip symbol=NVDA error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 18:27:21,639 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,697 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,698 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=59
+2026-08-03 18:27:21,700 WARNING app.modules.market.service pandaai_stock_list_skip symbol=AMZN error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 18:27:21,732 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,794 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,796 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=61
+2026-08-03 18:27:21,835 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,877 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getUsDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,878 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getUsDetail status=200 attempt=2 duration_ms=42
+2026-08-03 18:27:21,879 WARNING app.modules.market.service pandaai_stock_list_skip symbol=TSLA error=PandaAI request failed for /multi/getUsDetail: API访问权限不足
+2026-08-03 18:27:21,925 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,969 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:21,971 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=44
+2026-08-03 18:27:21,998 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,042 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,043 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=44
+2026-08-03 18:27:22,044 WARNING app.modules.market.service pandaai_stock_list_skip symbol=000001.SZ error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 18:27:22,064 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,106 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/index/getIndexSymbolData "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,107 INFO app.integrations.pandaai.client pandaai_request endpoint=/index/getIndexSymbolData status=200 attempt=2 duration_ms=41
+2026-08-03 18:27:22,161 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,228 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,229 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=66
+2026-08-03 18:27:22,250 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,293 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,294 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=42
+2026-08-03 18:27:22,323 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,380 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,381 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=56
+2026-08-03 18:27:22,381 WARNING app.modules.market.service pandaai_stock_list_skip symbol=300750.SZ error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 18:27:22,408 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,451 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,452 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=1 duration_ms=42
+2026-08-03 18:27:22,480 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,546 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,547 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=65
+2026-08-03 18:27:22,547 WARNING app.modules.market.service pandaai_stock_list_skip symbol=601318.SH error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 18:27:22,564 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,686 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,687 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=123
+2026-08-03 18:27:22,688 WARNING app.modules.market.service pandaai_stock_list_skip symbol=000858.SZ error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 18:27:22,801 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,846 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,847 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=45
+2026-08-03 18:27:22,847 WARNING app.modules.market.service pandaai_stock_list_skip symbol=600519.SH error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 18:27:22,874 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,918 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:22,919 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=43
+2026-08-03 18:27:22,919 WARNING app.modules.market.service pandaai_stock_list_skip symbol=601398.SH error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
+2026-08-03 18:27:23,038 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/dataUser/login "HTTP/1.1 200 OK"
+2026-08-03 18:27:23,080 INFO httpx HTTP Request: POST http://pandadata.pandaaiquant.com/pandaData/multi/getStockDetail "HTTP/1.1 200 OK"
+2026-08-03 18:27:23,082 INFO app.integrations.pandaai.client pandaai_request endpoint=/multi/getStockDetail status=200 attempt=2 duration_ms=42
+2026-08-03 18:27:23,082 WARNING app.modules.market.service pandaai_stock_list_skip symbol=600036.SH error=PandaAI request failed for /multi/getStockDetail: API访问权限不足
