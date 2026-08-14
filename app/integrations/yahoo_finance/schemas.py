@@ -11,3 +11,4 @@ class YahooFinanceDailyBar(BaseModel):
     low: float
     close: float
     volume: float | None = None
+    amount: float | None = None

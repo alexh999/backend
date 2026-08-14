@@ -34,6 +34,7 @@ from app.modules.market.schemas import (
     MarketCompanyProfileData,
     MarketStockDetailResponse,
     MarketStockListItemResponse,
+    MarketStockSnapshotData,
     MarketStockStatData,
 )
 
@@ -239,10 +240,77 @@ class MarketStockService:
                     close=bar.close,
                     previous_close=previous_close,
                     volume=bar.volume,
+                    amount=bar.amount,
                 )
             )
 
         return result
+
+    def get_stock_snapshot(self, symbol: str) -> MarketStockSnapshotData:
+        ticker = _normalize_market_symbol(symbol)
+        if not ticker:
+            raise ApplicationError("Stock symbol is required.", status_code=400)
+
+        bars = self.get_daily_bars(ticker, limit=2)
+        if len(bars) < 2:
+            raise ApplicationError(
+                f"No sufficient daily data found for {ticker}.",
+                status_code=404,
+            )
+
+        try:
+            if _is_a_share_symbol(ticker):
+                profile = self._pandaai_client.get_cn_detail(ticker)
+                metric_snapshot = None
+            else:
+                profile = self._pandaai_client.get_us_detail(ticker)
+                try:
+                    metric_snapshot = self._pandaai_client.get_stock_mktfin_metric(
+                        ticker
+                    )
+                except PandaAIIntegrationError as exc:
+                    logger.warning(
+                        "pandaai_metric_fallback symbol=%s error=%s",
+                        ticker,
+                        exc,
+                    )
+                    metric_snapshot = None
+        except PandaAIIntegrationError as exc:
+            raise ApplicationError(
+                f"Unable to load market data for {ticker}.",
+                status_code=502,
+            ) from exc
+
+        latest_bar = bars[-1]
+        previous_bar = bars[-2]
+        change_value = round(latest_bar.close - previous_bar.close, 2)
+        change_percent = (
+            round((change_value / previous_bar.close) * 100, 2)
+            if previous_bar.close
+            else 0.0
+        )
+
+        return MarketStockSnapshotData(
+            ticker=ticker,
+            company_name=profile.company_name,
+            exchange_label=profile.exchange_label,
+            latest_trading_date=latest_bar.trade_date,
+            latest_close=round(latest_bar.close, 2),
+            previous_close=round(previous_bar.close, 2),
+            change_value=change_value,
+            change_percent=change_percent,
+            open=latest_bar.open,
+            high=latest_bar.high,
+            low=latest_bar.low,
+            volume=latest_bar.volume,
+            amount=latest_bar.amount,
+            market_cap=(metric_snapshot.market_cap if metric_snapshot else None),
+            pe_ratio=(metric_snapshot.pe_ratio if metric_snapshot else None),
+            dividend_yield=(
+                metric_snapshot.dividend_yield if metric_snapshot else None
+            ),
+            valuation_date=(metric_snapshot.as_of_date if metric_snapshot else None),
+        )
 
     def list_stocks(self) -> list[MarketStockListItemResponse]:
         max_workers = min(len(self._symbols), 6) or 1
