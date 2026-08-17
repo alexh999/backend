@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 import re
 
 from app.core.errors import ApplicationError
@@ -14,6 +15,7 @@ from app.modules.quant.schemas import (
     FactorIcPeriodResponse,
     FactorIcResultResponse,
     QuantMarket,
+    DailyBar,
 )
 
 A_SHARE_SYMBOL_PATTERN = re.compile(
@@ -39,23 +41,19 @@ def analyze_real_factor_ic(
         symbols=request.symbols,
     )
 
-    bars_by_stock = {}
+    worker_count = min(4, len(request.symbols))
 
-    for symbol in request.symbols:
-        bars = normalize_daily_bars(
-            market_data.get_daily_bars(
+    with ThreadPoolExecutor(max_workers=worker_count) as executor:
+        loaded_bars = executor.map(
+            lambda symbol: _load_stock_bars(
+                market_data=market_data,
                 symbol=symbol,
                 limit=request.history_limit,
-            )
+            ),
+            request.symbols,
         )
 
-        if not bars:
-            raise ApplicationError(
-                f"No market data is available for {symbol}.",
-                status_code=404,
-            )
-
-        bars_by_stock[symbol] = bars
+        bars_by_stock = dict(loaded_bars)
 
     factor_results = tuple(
         _build_factor_response(
@@ -79,6 +77,28 @@ def analyze_real_factor_ic(
         minimum_sample_size=request.minimum_sample_size,
         factor_results=factor_results,
     )
+
+
+def _load_stock_bars(
+    *,
+    market_data: MarketDataProvider,
+    symbol: str,
+    limit: int,
+) -> tuple[str, tuple[DailyBar, ...]]:
+    bars = normalize_daily_bars(
+        market_data.get_daily_bars(
+            symbol=symbol,
+            limit=limit,
+        )
+    )
+
+    if not bars:
+        raise ApplicationError(
+            f"No market data is available for {symbol}.",
+            status_code=404,
+        )
+
+    return symbol, bars
 
 
 def _validate_symbols_for_market(

@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+import threading
 
 import pytest
 
@@ -69,7 +70,7 @@ def test_analyzes_three_factors_from_market_data() -> None:
 
     assert response.market == QuantMarket.UNITED_STATES
     assert response.symbols == ("AAPL", "MSFT", "NVDA")
-    assert market_data.calls == [
+    assert sorted(market_data.calls) == [
         ("AAPL", 120),
         ("MSFT", 120),
         ("NVDA", 120),
@@ -114,3 +115,33 @@ def test_reports_symbol_without_market_data() -> None:
 
     assert error.value.status_code == 404
     assert "MSFT" in error.value.message
+
+
+def test_loads_market_data_concurrently() -> None:
+    barrier = threading.Barrier(3)
+
+    class ConcurrentMarketDataProvider(StubMarketDataProvider):
+        def get_daily_bars(
+            self,
+            symbol: str,
+            limit: int,
+        ) -> tuple[DailyBar, ...]:
+            barrier.wait(timeout=5)
+            return super().get_daily_bars(symbol, limit)
+
+    market_data = ConcurrentMarketDataProvider(
+        {
+            "AAPL": _make_bars(100.0, 1.0),
+            "MSFT": _make_bars(200.0, 0.5),
+            "NVDA": _make_bars(150.0, -0.25),
+        }
+    )
+    request = FactorIcAnalysisRequest(
+        market=QuantMarket.UNITED_STATES,
+        symbols=("AAPL", "MSFT", "NVDA"),
+    )
+
+    response = analyze_real_factor_ic(request, market_data)
+
+    assert response.symbols == ("AAPL", "MSFT", "NVDA")
+    assert len(market_data.calls) == 3
