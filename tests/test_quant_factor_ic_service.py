@@ -70,6 +70,8 @@ def test_analyzes_three_factors_from_market_data() -> None:
 
     assert response.market == QuantMarket.UNITED_STATES
     assert response.symbols == ("AAPL", "MSFT", "NVDA")
+    assert response.successful_symbols == ("AAPL", "MSFT", "NVDA")
+    assert response.failed_stocks == ()
     assert sorted(market_data.calls) == [
         ("AAPL", 120),
         ("MSFT", 120),
@@ -97,7 +99,7 @@ def test_rejects_symbols_from_another_market() -> None:
     assert market_data.calls == []
 
 
-def test_reports_symbol_without_market_data() -> None:
+def test_skips_symbol_without_market_data_and_reports_insufficient_sample() -> None:
     market_data = StubMarketDataProvider(
         {
             "AAPL": _make_bars(100.0, 1.0),
@@ -110,11 +112,79 @@ def test_reports_symbol_without_market_data() -> None:
         symbols=("AAPL", "MSFT", "NVDA"),
     )
 
-    with pytest.raises(ApplicationError) as error:
-        analyze_real_factor_ic(request, market_data)
+    response = analyze_real_factor_ic(request, market_data)
 
-    assert error.value.status_code == 404
-    assert "MSFT" in error.value.message
+    assert response.successful_symbols == ("AAPL", "NVDA")
+    assert response.factor_results == ()
+    assert len(response.failed_stocks) == 1
+    assert response.failed_stocks[0].symbol == "MSFT"
+    assert response.failed_stocks[0].reason == "market_data_not_found"
+
+
+def test_continues_analysis_when_one_stock_request_fails() -> None:
+    class PartiallyFailingMarketDataProvider(StubMarketDataProvider):
+        def get_daily_bars(
+            self,
+            symbol: str,
+            limit: int,
+        ) -> tuple[DailyBar, ...]:
+            if symbol == "TSLA":
+                raise ApplicationError("Provider rate limited.", status_code=502)
+            return super().get_daily_bars(symbol, limit)
+
+    market_data = PartiallyFailingMarketDataProvider(
+        {
+            "AAPL": _make_bars(100.0, 1.0),
+            "MSFT": _make_bars(200.0, 0.5),
+            "NVDA": _make_bars(150.0, -0.25),
+        }
+    )
+    request = FactorIcAnalysisRequest(
+        market=QuantMarket.UNITED_STATES,
+        symbols=("AAPL", "MSFT", "NVDA", "TSLA"),
+    )
+
+    response = analyze_real_factor_ic(request, market_data)
+
+    assert response.successful_symbols == ("AAPL", "MSFT", "NVDA")
+    assert len(response.factor_results) == 3
+    assert response.failed_stocks[0].symbol == "TSLA"
+    assert response.failed_stocks[0].reason == "market_data_unavailable"
+
+
+def test_analyzes_twelve_stock_batch_when_some_market_requests_fail() -> None:
+    symbols = tuple(f"STOCK{index}" for index in range(12))
+
+    class LargePoolMarketDataProvider(StubMarketDataProvider):
+        def get_daily_bars(
+            self,
+            symbol: str,
+            limit: int,
+        ) -> tuple[DailyBar, ...]:
+            if symbol in {"STOCK2", "STOCK9"}:
+                raise ApplicationError("Provider request failed.", status_code=502)
+            return super().get_daily_bars(symbol, limit)
+
+    market_data = LargePoolMarketDataProvider(
+        {
+            symbol: _make_bars(100.0 + index, 0.1 * (index + 1))
+            for index, symbol in enumerate(symbols)
+            if symbol not in {"STOCK2", "STOCK9"}
+        }
+    )
+    request = FactorIcAnalysisRequest(
+        market=QuantMarket.UNITED_STATES,
+        symbols=symbols,
+    )
+
+    response = analyze_real_factor_ic(request, market_data)
+
+    assert len(response.successful_symbols) == 10
+    assert tuple(failure.symbol for failure in response.failed_stocks) == (
+        "STOCK2",
+        "STOCK9",
+    )
+    assert len(response.factor_results) == 3
 
 
 def test_loads_market_data_concurrently() -> None:

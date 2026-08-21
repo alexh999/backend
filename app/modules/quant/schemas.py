@@ -192,11 +192,20 @@ class FactorIcResultResponse(BaseModel):
     reliability: str
 
 
+class FactorIcStockFailureResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    symbol: str
+    reason: str
+
+
 class FactorIcAnalysisResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     market: QuantMarket
     symbols: tuple[str, ...]
+    successful_symbols: tuple[str, ...]
+    failed_stocks: tuple[FactorIcStockFailureResponse, ...]
     history_limit: int
     holding_period: int
     minimum_lookback: int
