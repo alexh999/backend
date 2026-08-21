@@ -368,6 +368,8 @@ def test_factor_ic_analysis_endpoint_returns_complete_payload() -> None:
 
     assert payload["market"] == "united_states"
     assert payload["symbols"] == ["AAPL", "MSFT", "NVDA"]
+    assert payload["successful_symbols"] == ["AAPL", "MSFT", "NVDA"]
+    assert payload["failed_stocks"] == []
     assert payload["history_limit"] == 45
     assert [
         result["factor_id"]

@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 import re
 
 from app.core.errors import ApplicationError
@@ -14,6 +15,7 @@ from app.modules.quant.schemas import (
     FactorIcAnalysisResponse,
     FactorIcPeriodResponse,
     FactorIcResultResponse,
+    FactorIcStockFailureResponse,
     QuantMarket,
     DailyBar,
 )
@@ -32,6 +34,13 @@ UNITED_STATES_SYMBOL_PATTERN = re.compile(
 )
 
 
+@dataclass(frozen=True)
+class _StockBarsLoadResult:
+    symbol: str
+    bars: tuple[DailyBar, ...] | None = None
+    failure_reason: str | None = None
+
+
 def analyze_real_factor_ic(
     request: FactorIcAnalysisRequest,
     market_data: MarketDataProvider,
@@ -44,33 +53,51 @@ def analyze_real_factor_ic(
     worker_count = min(4, len(request.symbols))
 
     with ThreadPoolExecutor(max_workers=worker_count) as executor:
-        loaded_bars = executor.map(
+        load_results = tuple(executor.map(
             lambda symbol: _load_stock_bars(
                 market_data=market_data,
                 symbol=symbol,
                 limit=request.history_limit,
             ),
             request.symbols,
+        ))
+
+    bars_by_stock = {
+        result.symbol: result.bars
+        for result in load_results
+        if result.bars is not None
+    }
+    failed_stocks = tuple(
+        FactorIcStockFailureResponse(
+            symbol=result.symbol,
+            reason=result.failure_reason or "market_data_unavailable",
         )
+        for result in load_results
+        if result.bars is None
+    )
 
-        bars_by_stock = dict(loaded_bars)
-
-    factor_results = tuple(
-        _build_factor_response(
-            calculate_factor_ic_analysis(
-                factor_id=factor_id,
-                bars_by_stock=bars_by_stock,
-                holding_period=request.holding_period,
-                minimum_lookback=request.minimum_lookback,
-                minimum_sample_size=request.minimum_sample_size,
+    factor_results = (
+        tuple(
+            _build_factor_response(
+                calculate_factor_ic_analysis(
+                    factor_id=factor_id,
+                    bars_by_stock=bars_by_stock,
+                    holding_period=request.holding_period,
+                    minimum_lookback=request.minimum_lookback,
+                    minimum_sample_size=request.minimum_sample_size,
+                )
             )
+            for factor_id in SUPPORTED_FACTOR_IDS
         )
-        for factor_id in SUPPORTED_FACTOR_IDS
+        if len(bars_by_stock) >= request.minimum_sample_size
+        else ()
     )
 
     return FactorIcAnalysisResponse(
         market=request.market,
         symbols=request.symbols,
+        successful_symbols=tuple(bars_by_stock),
+        failed_stocks=failed_stocks,
         history_limit=request.history_limit,
         holding_period=request.holding_period,
         minimum_lookback=request.minimum_lookback,
@@ -84,21 +111,34 @@ def _load_stock_bars(
     market_data: MarketDataProvider,
     symbol: str,
     limit: int,
-) -> tuple[str, tuple[DailyBar, ...]]:
-    bars = normalize_daily_bars(
-        market_data.get_daily_bars(
-            symbol=symbol,
-            limit=limit,
+) -> _StockBarsLoadResult:
+    try:
+        bars = normalize_daily_bars(
+            market_data.get_daily_bars(
+                symbol=symbol,
+                limit=limit,
+            )
         )
-    )
+    except ApplicationError as error:
+        reason = (
+            "market_data_not_found"
+            if error.status_code == 404
+            else "market_data_unavailable"
+        )
+        return _StockBarsLoadResult(symbol=symbol, failure_reason=reason)
+    except (TypeError, ValueError):
+        return _StockBarsLoadResult(
+            symbol=symbol,
+            failure_reason="invalid_market_data",
+        )
 
     if not bars:
-        raise ApplicationError(
-            f"No market data is available for {symbol}.",
-            status_code=404,
+        return _StockBarsLoadResult(
+            symbol=symbol,
+            failure_reason="market_data_not_found",
         )
 
-    return symbol, bars
+    return _StockBarsLoadResult(symbol=symbol, bars=bars)
 
 
 def _validate_symbols_for_market(
